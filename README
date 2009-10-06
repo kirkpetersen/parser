@@ -1,1 +1,61 @@
-Parser experiment...
+Parser experiment
+
+I've got a variety of thoughts on programming language design.
+
+One idea is to extend languages. This is possible with some languages
+but definitely not with anything that uses a static parser generator.
+
+This code is a prototype of a bottom up parser generator that is very
+dynamic.
+
+Here are the two situations to consider:
+
+1. a grammar could be modified or extended
+  - imagine a library file that contains the C grammar
+  - could be easily loaded by the user
+  - it could be modified
+  - once loaded and modified, it could be used to parse C files and
+    do static analysis, batch changes, etc
+
+2. a language could allow for defining new syntax which is used immediately
+  - the user might define a new syntax element at the start of a block
+  - the new syntax will be inserted into the natural part of the grammar
+  - the parser will immediately be able to see this and match with it
+
+The goal is to support both of these, but the second one isn't an
+absolute requirement.
+
+* Goals (very long term)
+
+The eventual goal is to create a new language. I want any non-trivial
+program to have layers of specification.  The first layer might be
+something like a makefile:
+
+  dependencies {
+    main <- main.o foo.o
+    main.o <- main.l
+    foo.o <- foo.l
+    main.analysis <- main.l 
+  }
+
+  grammar g = load normal grammar
+  compiler c = load normal compiler
+
+  load vector math syntax and optimizations
+
+  if(!production) {
+    g.add_syntax { DEBUG -> define DEBUG macro right here for this project }
+  }
+
+  g.add_syntax(vector)
+  c.set_grammar(g)
+
+  rules {
+    .l -> .o { use compiler c for these transformations }
+
+    .l -> .analysis { use grammar g to parse code, analyze }
+  }
+
+What I'm trying to show is that this is the first layer and it creates
+a grammar and compiler that compile the next layer. This might mean
+adding syntax for a hardware feature (vectors), defining macros, etc.
