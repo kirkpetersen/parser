@@ -16,19 +16,24 @@
 using namespace std;
 
 class parser {
-public:
     map<string, list<list<string> > > productions;
-};
 
-void run(parser & p)
-{
     list<int> state_stack;
     list<int> symbol_stack;
 
+public:
+
+    void run(void);
+    void dump(void);
+    void read(void);
+};
+
+void parser::run(void)
+{
     // states are kernel + non-kernel items
 
     // start symbol
-    list<list<string> > start = p.productions[string("start")];
+    list<list<string> > start = productions[string("start")];
 
     // Create initial kernel item ("start") and push it onto the state stack
 
@@ -51,7 +56,7 @@ void run(parser & p)
     return;
 }
 
-void read(parser & p)
+void parser::read(void)
 {
     char line[80];
 
@@ -68,18 +73,18 @@ void read(parser & p)
 	    symbols.push_back(sym);
 	}
 
-	p.productions[head].push_back(symbols);
+	productions[head].push_back(symbols);
     }
 
     return;
 }
 
-void dump(parser & p)
+void parser::dump(void)
 {
     map<string, list<list<string> > >::const_iterator mi;
 
     // For each production...
-    for(mi = p.productions.begin(); mi != p.productions.end(); mi++) {
+    for(mi = productions.begin(); mi != productions.end(); mi++) {
 	string h = mi->first;
 	list<list<string> > l = mi->second;
 
@@ -111,10 +116,10 @@ int main(int argc, char * argv[])
 {
     parser p;
 
-    read(p);
-    dump(p);
+    p.read();
+    p.dump();
 
-    run(p);
+    p.run();
 
     return 0;
 }
