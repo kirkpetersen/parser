@@ -15,12 +15,14 @@ Here are the two situations to consider:
   - could be easily loaded by the user
   - it could be modified
   - once loaded and modified, it could be used to parse C files and
-    do static analysis, batch changes, etc
+    do static analysis, batch changes, or whatever the user could think
+    of.  not at all possible with most parsers that are embedded within
+    large compiler suites.
 
 2. a language could allow for defining new syntax which is used immediately
   - the user might define a new syntax element at the start of a block
-  - the new syntax will be inserted into the natural part of the grammar
-  - the parser will immediately be able to see this and match with it
+  - the new syntax would be inserted into the appropriate part of the grammar
+  - the parser would immediately be able to see this and match with it
 
 The goal is to support both of these, but the second one isn't an
 absolute requirement.
@@ -59,3 +61,4 @@ something like a makefile:
 What I'm trying to show is that this is the first layer and it creates
 a grammar and compiler that compile the next layer. This might mean
 adding syntax for a hardware feature (vectors), defining macros, etc.
+

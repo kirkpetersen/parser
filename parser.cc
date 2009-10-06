@@ -15,15 +15,50 @@
 
 using namespace std;
 
+// parser item: symbols from production, current index into symbols
+// parser state: list of kernel and list of non-kernel items
+// 
+
+class parser_item {
+public:
+    vector<string> symbols;
+    unsigned index;
+
+    parser_item(const list<string> & l);
+};
+
+parser_item::parser_item(const list<string> & l)
+{
+    list<string>::const_iterator li;
+    unsigned i = 0;
+
+    symbols.resize(l.size());
+
+    for(li = l.begin(); li != l.end(); li++) {
+	symbols[i++] = *li;
+    }
+
+    index = 0;
+
+    return;
+}
+
+class parser_state {
+public:
+    list<parser_item> kernel_items;
+    list<parser_item> nonkernel_items;
+};
+
 class parser {
     map<string, list<list<string> > > productions;
 
-    list<int> state_stack;
-    list<int> symbol_stack;
+    list<parser_state> state_stack;
+    list<string> symbol_stack;
 
 public:
 
     void run(void);
+    void closure(parser_state & ps);
     void dump(void);
     void read(void);
 };
@@ -34,6 +69,23 @@ void parser::run(void)
 
     // start symbol
     list<list<string> > start = productions[string("start")];
+
+    if(start.empty()) {
+	cerr << "no start state!" << endl;
+	return;
+    }
+
+    parser_state ps;
+
+    list<list<string> >::const_iterator li;
+
+    for(li = start.begin(); li != start.end(); li++) {
+	parser_item pi(*li);
+
+	ps.kernel_items.push_back(pi);
+    }
+
+    closure(ps);
 
     // Create initial kernel item ("start") and push it onto the state stack
 
@@ -52,6 +104,56 @@ void parser::run(void)
     //   - shift new token/symbol onto stack
     //   - push new state (possible matches) onto state stack
     // - get next token and loop
+
+    return;
+}
+
+void parser::closure(parser_state & ps)
+{
+    map<string, bool> added;
+    list<parser_item>::const_iterator ki;
+
+    for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
+	parser_item i = *ki;
+
+	// If this is the end of the item, nothing to do
+	if(i.index == i.symbols.size()) {
+	    continue;
+	}
+
+	// This is meant to test if the symbols is terminal
+	if(islower(i.symbols[i.index][0])) {
+	    continue;
+	}
+
+	string head = i.symbols[i.index];
+
+	if(added[head]) {
+	    continue;
+	}
+
+	list<list<string> >::const_iterator li;
+
+	// For each right side of each production, add a non-kernel item
+	for(li = productions[head].begin();
+	    li != productions[head].end(); li++) {
+	    parser_item pi(*li);
+
+	    ps.nonkernel_items.push_back(pi);
+	}
+
+	added[head] = true;
+    }
+
+    unsigned x;
+
+    do {
+	// set to 0 and increment for each new item
+	x = 0;
+
+	// for each nonkernel item...
+
+    } while(x > 0);
 
     return;
 }
