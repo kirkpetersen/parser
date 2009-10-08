@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <list>
 #include <map>
@@ -63,7 +64,7 @@ public:
 	cout << "kernel items:" << endl;
 
 	for(li = kernel_items.begin(); li != kernel_items.end(); li++) {
-	    parser_item pi(*li);
+	    parser_item pi = *li;
 
 	    pi.dump();
 	}
@@ -71,7 +72,7 @@ public:
 	cout << "nonkernel items:" << endl;
 
 	for(li = nonkernel_items.begin(); li != nonkernel_items.end(); li++) {
-	    parser_item pi(*li);
+	    parser_item pi = *li;
 
 	    pi.dump();
 	}
@@ -89,7 +90,9 @@ public:
     void run(void);
     void closure(parser_state & ps);
     void dump(void);
-    void read(void);
+    void load(const char * filename);
+
+    void check_shift(const list<parser_item> &l1, list<parser_item> & l2);
 
     string token(void);
 };
@@ -99,7 +102,9 @@ void parser::run(void)
     // states are kernel + non-kernel items
 
     // start symbol
-    list<list<string> > start = productions[string("start")];
+    string START = "S";
+
+    list<list<string> > start = productions[START];
 
     if(start.empty()) {
 	cerr << "no start state!" << endl;
@@ -111,7 +116,7 @@ void parser::run(void)
     list<list<string> >::const_iterator li;
 
     for(li = start.begin(); li != start.end(); li++) {
-	parser_item pi(string("start"), *li);
+	parser_item pi(START, *li);
 
 	ps.kernel_items.push_back(pi);
     }
@@ -124,6 +129,10 @@ void parser::run(void)
 
     int reduced = 0;
 
+    string t = token();
+
+    cout << "new token: " << t << endl;
+
     // TODO need to work on tokenizer
 
     for(unsigned foo = 0; foo < 0; foo++) {
@@ -133,7 +142,7 @@ void parser::run(void)
 	list<parser_item>::const_iterator ki;
 
 	for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
-	    parser_item pi(*ki);
+	    parser_item pi = *ki;
 
 	    if(pi.index != pi.symbols.size()) {
 		continue;
@@ -174,28 +183,48 @@ void parser::run(void)
 	    continue;
 	}
 
+	parser_state ns;
+
 	cout << "shifting" << endl;
 
 	// check shift on kernel and nonkernel items
+
+	check_shift(ps.kernel_items, ns.kernel_items);
+	check_shift(ps.nonkernel_items, ns.kernel_items);
+
+	if(ns.kernel_items.empty()) {
+	    cout << "no match for token " << t << endl;
+	    break;
+	}
+
+	t = token();
+
+	cout << "new token: " << t << endl;
     }
 
-    // Create initial kernel item ("start") and push it onto the state stack
+    return;
+}
 
-    // Grab the first token
+void parser::check_shift(const list<parser_item> & l1, list<parser_item> & l2)
+{
+    list<parser_item>::const_iterator li;
 
-    // Enter main loop
-    // - look for reductions
-    //   - if any "possible" items (?) are at the end, reduce
-    //   - for N symbols in this item, pop off symbol stack
-    //   - delete state off stack
-    //   - get the top of state stack
-    //   - push non-terminal onto symbol stack
-    // - shift
-    //   - find all possible matches for the token in current items
-    //   - no matches means a parse error
-    //   - shift new token/symbol onto stack
-    //   - push new state (possible matches) onto state stack
-    // - get next token and loop
+    for(li = l1.begin(); li != l1.end(); li++) {
+	parser_item i = *li;
+	string s = i.symbols[i.index];
+
+	if(islower(s[0])) {
+	    continue;
+	}
+
+	if("x" == s) {
+	    parser_item ni = i;
+
+	    ni.index++;
+
+	    l2.push_back(ni);
+	}
+    }
 
     return;
 }
@@ -206,7 +235,7 @@ void parser::closure(parser_state & ps)
     list<parser_item>::const_iterator ki;
 
     for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
-	parser_item i(*ki);
+	parser_item i = *ki;
 
 	// If this is the end of the item, nothing to do
 	if(i.index == i.symbols.size()) {
@@ -245,7 +274,7 @@ void parser::closure(parser_state & ps)
 
 	for(ki = ps.nonkernel_items.begin();
 	    ki != ps.nonkernel_items.end(); ki++) {
-	    parser_item i(*ki);
+	    parser_item i = *ki;
 
 	    if(islower(i.symbols[i.index][0])) {
 		continue;
@@ -276,11 +305,13 @@ void parser::closure(parser_state & ps)
     return;
 }
 
-void parser::read(void)
+void parser::load(const char * filename)
 {
     char line[80];
 
-    while(cin.getline(line, sizeof(line))) {
+    fstream fs(filename, fstream::in);
+
+    while(fs.getline(line, sizeof(line))) {
 	istringstream iss(line);
 	list<string> symbols;
 	string head;
@@ -295,6 +326,8 @@ void parser::read(void)
 
 	productions[head].push_back(symbols);
     }
+
+    fs.close();
 
     return;
 }
@@ -369,7 +402,11 @@ int main(int argc, char * argv[])
 {
     parser p;
 
-    p.read();
+    if(!argv[1]) {
+	return 1;
+    }
+
+    p.load(argv[1]);
 
     cout << "[dumping after read]" << endl;
 
