@@ -1,4 +1,5 @@
-start A B
+start A
 A B C
-A D E
-B F G
+A x
+B y
+C z
