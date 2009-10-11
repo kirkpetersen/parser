@@ -13,12 +13,18 @@
 #include <list>
 #include <map>
 #include <queue>
+#include <set>
 
 using namespace std;
 
-// parser item: symbols from production, current index into symbols
-// parser state: list of kernel and list of non-kernel items
-// 
+bool symbol_is_terminal(const string & s)
+{
+    if(isupper(s[0])) {
+	return false;
+    } else {
+	return true;
+    }
+}
 
 class parser_item {
 public:
@@ -26,16 +32,8 @@ public:
     vector<string> symbols;
     unsigned index;
 
-    parser_item(const string h, const list<string> & l)
-	: head(h), symbols(l.size()), index(0) {
-	list<string>::const_iterator li;
-	unsigned i = 0;
-
-	for(li = l.begin(); li != l.end(); li++) {
-	    symbols[i++] = *li;
-	}
-
-	return;
+    parser_item(const string h, const vector<string> & v)
+	: head(h), symbols(v), index(0) {
     }
 
     void dump(void) {
@@ -80,7 +78,7 @@ public:
 };
 
 class parser {
-    map<string, list<list<string> > > productions;
+    map<string, list<vector<string> > > productions;
 
     list<parser_state> state_stack;
     list<string> symbol_stack;
@@ -92,9 +90,16 @@ public:
     void dump(void);
     void load(const char * filename);
 
-    void check_shift(const list<parser_item> &l1, list<parser_item> & l2);
+    void first(const string & h, set<string> & rs);
+    void first(const string & h, map<string, bool> & v, set<string> & rs);
 
-    string token(void);
+    void follows(const string & fs, set<string> & rs);
+    void follows(const string & fs, map<string, bool> & v, set<string> & rs);
+
+    void check_shift(const string & t,
+		     const list<parser_item> &l1, list<parser_item> & l2);
+
+    const string token(void);
 };
 
 void parser::run(void)
@@ -102,9 +107,9 @@ void parser::run(void)
     // states are kernel + non-kernel items
 
     // start symbol
-    string START = "S";
+    string START = "START";
 
-    list<list<string> > start = productions[START];
+    list<vector<string> > start = productions[START];
 
     if(start.empty()) {
 	cerr << "no start state!" << endl;
@@ -113,7 +118,7 @@ void parser::run(void)
 
     parser_state ps;
 
-    list<list<string> >::const_iterator li;
+    list<vector<string> >::const_iterator li;
 
     for(li = start.begin(); li != start.end(); li++) {
 	parser_item pi(START, *li);
@@ -127,19 +132,27 @@ void parser::run(void)
 
     unsigned loop = 0;
 
-    int reduced = 0;
+#if 1
+    cout << "[dumping before executing parser]" << endl;
+    dump();
+#endif
 
+#if 1
+    cout << "[starting the parse]" << endl;
+#endif
+
+    // Get the first token
     string t = token();
 
     cout << "new token: " << t << endl;
 
-    // TODO need to work on tokenizer
-
-    for(unsigned foo = 0; foo < 0; foo++) {
-	cout << "LOOP: " << loop++;
+    for(;;) {
+	cout << "LOOP: " << loop++ << endl;
 
 	// First check for reductions
 	list<parser_item>::const_iterator ki;
+
+	int reduced = 0;
 
 	for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
 	    parser_item pi = *ki;
@@ -151,19 +164,15 @@ void parser::run(void)
 	    reduced = 1;
 
 	    string head = pi.head;
-	    unsigned ns = pi.symbols.size();
+	    unsigned n = pi.symbols.size();
 
-	    cout << "reduce by %s -> " << head;
+	    cout << "reduce by " << head << " -> ";
 
-	    for(unsigned i = 0; i < ns; i++) {
+	    for(unsigned i = 0; i < n; i++) {
 		// Pop symbols off the stack and print
-		cout << symbol_stack.back();
+		cout << "[" << symbol_stack.back() << "]";
 
 		symbol_stack.pop_back();
-
-		if(i < ns - 1) {
-		    cout << " ";
-		}
 
 		// Pop this state off the stack
 		ps = state_stack.back();
@@ -172,7 +181,7 @@ void parser::run(void)
 
 	    cout << endl;
 
-	    cout << "new symbol on stack: %s" << head;
+	    cout << "new symbol on stack: " << head << endl;
 
 	    symbol_stack.push_back(head);
 
@@ -189,13 +198,21 @@ void parser::run(void)
 
 	// check shift on kernel and nonkernel items
 
-	check_shift(ps.kernel_items, ns.kernel_items);
-	check_shift(ps.nonkernel_items, ns.kernel_items);
+	check_shift(t, ps.kernel_items, ns.kernel_items);
+	check_shift(t, ps.nonkernel_items, ns.kernel_items);
 
 	if(ns.kernel_items.empty()) {
 	    cout << "no match for token " << t << endl;
 	    break;
 	}
+
+	// TODO call closure(ns) to properly fill in state?
+	closure(ns);
+
+	symbol_stack.push_back(t);
+	state_stack.push_back(ns);
+
+	ps = ns;
 
 	t = token();
 
@@ -205,7 +222,8 @@ void parser::run(void)
     return;
 }
 
-void parser::check_shift(const list<parser_item> & l1, list<parser_item> & l2)
+void parser::check_shift(const string & t,
+			 const list<parser_item> & l1, list<parser_item> & l2)
 {
     list<parser_item>::const_iterator li;
 
@@ -213,11 +231,11 @@ void parser::check_shift(const list<parser_item> & l1, list<parser_item> & l2)
 	parser_item i = *li;
 	string s = i.symbols[i.index];
 
-	if(islower(s[0])) {
+	if(!symbol_is_terminal(s)) {
 	    continue;
 	}
 
-	if("x" == s) {
+	if(t == s) {
 	    parser_item ni = i;
 
 	    ni.index++;
@@ -225,6 +243,94 @@ void parser::check_shift(const list<parser_item> & l1, list<parser_item> & l2)
 	    l2.push_back(ni);
 	}
     }
+
+    return;
+}
+
+void parser::first(const string & h, map<string, bool> & v, set<string> & rs)
+{
+    // If it is a terminal, it goes on the list
+    if(symbol_is_terminal(h)) {
+	rs.insert(h);
+	return;
+    }
+
+    if(v[h]) {
+	return;
+    }
+
+    v[h] = true;
+
+    list<vector<string> >::const_iterator li;
+
+    for(li = productions[h].begin(); li != productions[h].end(); li++) {
+	string s = (*li)[0];
+
+	if(symbol_is_terminal(s)) {
+	    rs.insert(s);
+	} else {
+	    first(s, v, rs);
+	}
+    }
+
+    return;
+}
+
+void parser::first(const string & h, set<string> & rs)
+{
+    map<string, bool> visited;
+
+    // Call the recursive version with the visited map
+    first(h, visited, rs);
+
+    return;
+}
+
+void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
+{
+    // If we've already done FOLLOWS on this symbol, return
+    if(v[fs]) {
+	return;
+    }
+
+    v[fs] = true;
+
+    map<string, list<vector<string> > >::const_iterator mi;
+
+    // Iterate over all productions
+    for(mi = productions.begin(); mi != productions.end(); mi++) {
+	const string head = mi->first;
+	list<vector<string> > body = mi->second;
+
+	list<vector<string> >::const_iterator li;
+
+	for(li = body.begin(); li != body.end(); li++) {
+	    vector<string> p = *li;
+	    unsigned size = p.size();
+
+	    // All but the last symbol
+	    for(unsigned i = 0; i < size - 1; i++) {
+		if(p[i] == fs) {
+		    // FIRST of the next symbol
+		    first(p[i + 1], rs);
+		}
+	    }
+
+	    // Handle the last symbol
+	    if(p[size - 1] == fs) {
+		follows(head, v, rs);
+	    }
+	}
+    }
+
+    return;
+}
+
+void parser::follows(const string & fs, set<string> & rs)
+{
+    map<string, bool> visited;
+
+    follows(fs, visited, rs);
 
     return;
 }
@@ -243,7 +349,7 @@ void parser::closure(parser_state & ps)
 	}
 
 	// This is meant to test if the symbols is terminal
-	if(islower(i.symbols[i.index][0])) {
+	if(symbol_is_terminal(i.symbols[i.index])) {
 	    continue;
 	}
 
@@ -253,7 +359,7 @@ void parser::closure(parser_state & ps)
 	    continue;
 	}
 
-	list<list<string> >::const_iterator li;
+	list<vector<string> >::const_iterator li;
 
 	// For each right side of each production, add a non-kernel item
 	for(li = productions[head].begin();
@@ -276,7 +382,7 @@ void parser::closure(parser_state & ps)
 	    ki != ps.nonkernel_items.end(); ki++) {
 	    parser_item i = *ki;
 
-	    if(islower(i.symbols[i.index][0])) {
+	    if(symbol_is_terminal(i.symbols[i.index])) {
 		continue;
 	    }
 
@@ -286,7 +392,7 @@ void parser::closure(parser_state & ps)
 		continue;
 	    }
 
-	    list<list<string> >::const_iterator li;
+	    list<vector<string> >::const_iterator li;
 
 	    for(li = productions[head].begin();
 		li != productions[head].end(); li++) {
@@ -313,10 +419,14 @@ void parser::load(const char * filename)
 
     while(fs.getline(line, sizeof(line))) {
 	istringstream iss(line);
-	list<string> symbols;
+	vector<string> symbols;
 	string head;
 
 	iss >> head;
+
+	if(head.empty()) {
+	    continue;
+	}
 
 	string sym;
 
@@ -334,28 +444,28 @@ void parser::load(const char * filename)
 
 void parser::dump(void)
 {
-    map<string, list<list<string> > >::const_iterator mi;
+    map<string, list<vector<string> > >::const_iterator mi;
 
     cout << "* productions:" << endl;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); mi++) {
 	string h = mi->first;
-	list<list<string> > l = mi->second;
+	list<vector<string> > l = mi->second;
 
-	list<list<string> >::const_iterator li;
+	list<vector<string> >::const_iterator li;
 
 	// This handles multiple productions with the same head
 	for(li = l.begin(); li != l.end(); li++) {
-	    list<string> l2 = *li;
+	    vector<string> v = *li;
 
 	    cout << h << ": ";
 
 	    list<string>::const_iterator li2;
 
 	    // Iterates through the symbols
-	    for(li2 = l2.begin(); li2 != l2.end(); li2++) {
-		string s = *li2;
+	    for(unsigned i = 0; i < v.size(); i++) {
+		string s = v[i];
 
 		cout << "[" << s << "]";
 	    }
@@ -387,7 +497,7 @@ void parser::dump(void)
     return;
 }
 
-string parser::token(void)
+const string parser::token(void)
 {
     // Simply return the next token
 
@@ -396,6 +506,71 @@ string parser::token(void)
     cin >> s;
 
     return s;
+}
+
+int test(parser & p)
+{
+    set<string>::const_iterator si;
+
+    // FIRST(START)
+    {
+	set<string> rs;
+
+	cout << "FIRST(START): " << endl;
+	p.first(string("START"), rs);
+
+	for(si = rs.begin(); si != rs.end(); si++) {
+	    cout << "[" << *si << "]";
+	}
+
+	cout << endl;
+
+    }
+
+    // FIRST(E)
+    {
+	set<string> rs;
+
+	cout << "FIRST(E): " << endl;
+	p.first(string("E"), rs);
+
+	for(si = rs.begin(); si != rs.end(); si++) {
+	    cout << "[" << *si << "]";
+	}
+
+	cout << endl;
+    }
+
+
+    // FOLLOWS(E)
+    {
+	set<string> rs;
+
+	cout << "FOLLOWS(E): " << endl;
+	p.follows(string("E"), rs);
+
+	for(si = rs.begin(); si != rs.end(); si++) {
+	    cout << "[" << *si << "]";
+	}
+
+	cout << endl;
+    }
+
+    // FIRST(+)
+    {
+	set<string> rs;
+
+	cout << "FIRST(+): " << endl;
+	p.first(string("+"), rs);
+
+	for(si = rs.begin(); si != rs.end(); si++) {
+	    cout << "[" << *si << "]";
+	}
+
+	cout << endl;
+    }
+
+    return 0;
 }
 
 int main(int argc, char * argv[])
@@ -407,6 +582,12 @@ int main(int argc, char * argv[])
     }
 
     p.load(argv[1]);
+
+    cout << "[first run tests]" << endl;
+
+    if(test(p) != 0) {
+	cerr << "test: FAIL" << endl;
+    }
 
     cout << "[dumping after read]" << endl;
 

@@ -1,0 +1,12 @@
+START STMT
+STMT if E then E else E
+
+E x
+E y
+E 0
+E 1
+
+E E + E
+E E - E
+E E * E
+E E / E
