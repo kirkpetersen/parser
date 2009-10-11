@@ -1,0 +1,12 @@
+START E
+
+E E + T
+E T
+
+T T * F
+T F
+
+F ( E )
+F x
+F y
+F z
