@@ -37,7 +37,7 @@ public:
     }
 
     void dump(void) {
-	cout << "  " << head << " -> ";
+	cout << "   " << head << " -> ";
 
 	unsigned size = symbols.size();
 
@@ -69,7 +69,7 @@ public:
     void dump(void) {
 	list<parser_item>::const_iterator li;
 
-	cout << " kernel items:" << endl;
+	cout << "  kernel items:" << endl;
 
 	for(li = kernel_items.begin(); li != kernel_items.end(); li++) {
 	    parser_item pi = *li;
@@ -77,7 +77,7 @@ public:
 	    pi.dump();
 	}
 
-	cout << " nonkernel items:" << endl;
+	cout << "  nonkernel items:" << endl;
 
 	for(li = nonkernel_items.begin(); li != nonkernel_items.end(); li++) {
 	    parser_item pi = *li;
@@ -416,6 +416,10 @@ void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
 
     v[fs] = true;
 
+    if(fs == "START") {
+	rs.insert(string("$"));
+    }
+
     map<string, list<vector<string> > >::const_iterator mi;
 
     // Iterate over all productions
@@ -571,7 +575,7 @@ void parser::dump(const char * msg)
 	cout << "[" << msg << "]" << endl;
     }
 
-    cout << "* productions:" << endl;
+    cout << "productions:" << endl;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); mi++) {
@@ -604,17 +608,17 @@ void parser::dump(const char * msg)
 	}
     }
 
-    cout << "* parser state:" << endl;
+    cout << "parser state:" << endl;
 
-    cout << "symbol stack:" << endl;
+    cout << " symbol stack:" << endl;
 
     list<string>::const_iterator sy;
 
     for(sy = symbol_stack.begin(); sy != symbol_stack.end(); sy++) {
-	cout << " " << *sy << endl;
+	cout << "  " << *sy << endl;
     }
 
-    cout << "state stack:" << endl;
+    cout << " state stack:" << endl;
 
     list<parser_state>::const_iterator st;
 
@@ -623,7 +627,7 @@ void parser::dump(const char * msg)
     for(st = state_stack.begin(); st != state_stack.end(); st++) {
 	parser_state ps = *st;
 
-	cout << "state " << sn++ << endl;
+	cout << " state " << sn++ << endl;
 
 	ps.dump();
     }
@@ -640,94 +644,4 @@ const string parser::token(void)
     cin >> s;
 
     return s;
-}
-
-int test(parser & p)
-{
-    set<string>::const_iterator si;
-
-    // FIRST(START)
-    {
-	set<string> rs;
-
-	cout << "FIRST(START): " << endl;
-	p.first(string("START"), rs);
-
-	for(si = rs.begin(); si != rs.end(); si++) {
-	    cout << "[" << *si << "]";
-	}
-
-	cout << endl;
-
-    }
-
-    // FIRST(E)
-    {
-	set<string> rs;
-
-	cout << "FIRST(E): " << endl;
-	p.first(string("E"), rs);
-
-	for(si = rs.begin(); si != rs.end(); si++) {
-	    cout << "[" << *si << "]";
-	}
-
-	cout << endl;
-    }
-
-
-    // FOLLOWS(E)
-    {
-	set<string> rs;
-
-	cout << "FOLLOWS(E): " << endl;
-	p.follows(string("E"), rs);
-
-	for(si = rs.begin(); si != rs.end(); si++) {
-	    cout << "[" << *si << "]";
-	}
-
-	cout << endl;
-    }
-
-    // FIRST(+)
-    {
-	set<string> rs;
-
-	cout << "FIRST(+): " << endl;
-	p.first(string("+"), rs);
-
-	for(si = rs.begin(); si != rs.end(); si++) {
-	    cout << "[" << *si << "]";
-	}
-
-	cout << endl;
-    }
-
-    return 0;
-}
-
-int main(int argc, char * argv[])
-{
-    parser p;
-
-    if(!argv[1]) {
-	return 1;
-    }
-
-    p.load(argv[1]);
-
-    cout << "[first run tests]" << endl;
-
-    if(test(p) != 0) {
-	cerr << "test: FAIL" << endl;
-    }
-
-    p.dump("after load");
-
-    p.run();
-
-    p.dump("after run");
-
-    return 0;
 }

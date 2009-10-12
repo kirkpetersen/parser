@@ -2,6 +2,8 @@
 
 CPPFLAGS = -Wall -Werror -g
 
-all:	parser
+all:	parser test
 
-parser:	parser.cc
+parser:	main.cc parser.cc parser.hh
+
+test:	test.cc parser.cc parser.hh
