@@ -517,7 +517,7 @@ void parser::dump(const char * msg)
 	    vector<string> v = *li;
 	    unsigned size = v.size();
 
-	    cout << h << "-> ";
+	    cout << " " << h << " -> ";
 
 	    list<string>::const_iterator li2;
 
