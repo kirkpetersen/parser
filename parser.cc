@@ -42,21 +42,16 @@ void parser::reduce(parser_state & ps)
 	string head = pi.head;
 	unsigned n = pi.symbols.size();
 
-	cout << "reduce by " << head << " -> ";
-
 	tree_node * tn = new tree_node(head);
 
+	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
 	    string s = symbol_stack.back();
 
-	    // Pop symbols off the stack and print
-	    cout << s;
-
-	    // Store these symbols in the tree
+	    // Add to the tree
 	    tn->insert(node_stack.back());
 	    node_stack.pop_back();
 
-	    // Pop the symbol off the stack and put it into the tree
 	    symbol_stack.pop_back();
 
 	    // Pop this state off the stack
@@ -64,15 +59,9 @@ void parser::reduce(parser_state & ps)
 
 	    // Set the current state to the previous
 	    ps = state_stack.back();
-
-	    if(i < n - 1) {
-		cout << " ";
-	    }
 	}
 
-	cout << endl;
-
-	cout << "new symbol on stack: " << head << endl;
+	cout << "reduce: " << head << " -> ... " << endl;
 
 	symbol_stack.push_back(head);
 
@@ -247,7 +236,7 @@ void parser::build_items(const string & t, bool terminal,
     for(li = l.begin(); li != l.end(); li++) {
 	parser_item i = *li;
 
-	if(i.index > i.symbols.size()) {
+	if(i.index >= i.symbols.size()) {
 	    continue;
 	}
 

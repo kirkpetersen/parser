@@ -3,8 +3,10 @@ STMT if E then E else E
 
 E x
 E y
+E z
 E 0
 E 1
+E 2
 
 E E + E
 E E - E
