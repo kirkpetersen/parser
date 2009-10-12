@@ -4,6 +4,14 @@ CPPFLAGS = -Wall -Werror -g
 
 all:	parser test
 
-parser:	main.cc parser.cc parser.hh
+parser.o:	parser.cc parser.hh
+test.o:	test.cc parser.hh
 
-test:	test.cc parser.cc parser.hh
+test:	test.o parser.o
+	g++ -o test test.o parser.o
+
+parser:	main.o parser.o
+	g++ -o parser main.o parser.o
+
+clean:
+	$(RM) test parser *.o

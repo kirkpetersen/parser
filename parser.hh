@@ -80,11 +80,67 @@ public:
     }
 };
 
+class tree_node {
+    string symbol;
+    list<tree_node *> nodes;
+
+public:
+    tree_node(const string & t) : symbol(t) { }
+
+    void insert(tree_node * n) {
+	nodes.push_front(n);
+	return;
+    }
+
+    // Assemble a string of everything below this node...
+    void dump2(string & s) {
+	if(symbol_is_terminal(symbol)) {
+	    s += symbol + " ";
+	}
+
+	list<tree_node *>::const_iterator ti;
+
+	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
+	    tree_node * tn = *ti;
+
+	    if(tn) {
+		tn->dump2(s);
+	    }
+	}
+
+	return;
+    }
+
+    void dump(unsigned spaces) {
+	for(unsigned i = 0; i < spaces; i++) { cout << ' '; }
+
+	string s;
+
+	dump2(s);
+
+	cout << symbol << " ( " << s << ")" << endl;
+
+	list<tree_node *>::const_iterator ti;
+
+	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
+	    tree_node * tn = *ti;
+
+	    if(tn) {
+		tn->dump(spaces + 1);
+	    }
+	}
+
+	return;
+    }
+};
+
 class parser {
     map<string, list<vector<string> > > productions;
 
     list<parser_state> state_stack;
     list<string> symbol_stack;
+
+    list<tree_node *> node_stack;
 
 public:
 
@@ -94,7 +150,7 @@ public:
     void load(const char * filename);
 
     void check(const string & t, const list<parser_item> & l,
-	       int & cs, int & cr);
+	       int & cs, int & cr, int & ca);
 
     void build_items(const string & t, bool terminal,
 		     const list<parser_item> & l, list<parser_item> & n);
@@ -114,4 +170,3 @@ public:
 
     const string token(void);
 };
-

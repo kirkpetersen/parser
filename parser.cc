@@ -15,6 +15,8 @@
 #include <queue>
 #include <set>
 
+#include "parser.hh"
+
 using namespace std;
 
 bool symbol_is_terminal(const string & s)
@@ -25,102 +27,6 @@ bool symbol_is_terminal(const string & s)
 	return true;
     }
 }
-
-class parser_item {
-public:
-    string head;
-    vector<string> symbols;
-    unsigned index;
-
-    parser_item(const string h, const vector<string> & v)
-	: head(h), symbols(v), index(0) {
-    }
-
-    void dump(void) {
-	cout << "   " << head << " -> ";
-
-	unsigned size = symbols.size();
-
-	for(unsigned i = 0; i < size; i++) {
-	    if(i == index) {
-		cout << ". ";
-	    }
-
-	    cout << symbols[i];
-
-	    if(i < size - 1) {
-		cout << " ";
-	    }
-	}
-
-	if(index == size) {
-	    cout << " .";
-	}
-
-	cout << endl;
-    }
-};
-
-class parser_state {
-public:
-    list<parser_item> kernel_items;
-    list<parser_item> nonkernel_items;
-
-    void dump(void) {
-	list<parser_item>::const_iterator li;
-
-	cout << "  kernel items:" << endl;
-
-	for(li = kernel_items.begin(); li != kernel_items.end(); li++) {
-	    parser_item pi = *li;
-
-	    pi.dump();
-	}
-
-	cout << "  nonkernel items:" << endl;
-
-	for(li = nonkernel_items.begin(); li != nonkernel_items.end(); li++) {
-	    parser_item pi = *li;
-
-	    pi.dump();
-	}
-    }
-};
-
-class parser {
-    map<string, list<vector<string> > > productions;
-
-    list<parser_state> state_stack;
-    list<string> symbol_stack;
-
-public:
-
-    void run(void);
-    void closure(parser_state & ps);
-    void dump(const char * msg = NULL);
-    void load(const char * filename);
-
-    void check(const string & t, const list<parser_item> & l,
-	       int & cs, int & cr);
-
-    void build_items(const string & t, bool terminal,
-		     const list<parser_item> & l, list<parser_item> & n);
-
-    void shift(const parser_state & ps, const string & t);
-
-    void reduce(parser_state & ps);
-
-    void first(const string & h, set<string> & rs);
-    void first(const string & h, map<string, bool> & v, set<string> & rs);
-
-    void follows(const string & fs, set<string> & rs);
-    void follows(const string & fs, map<string, bool> & v, set<string> & rs);
-
-    void check_shift(const string & t,
-		     const list<parser_item> &l1, list<parser_item> & l2);
-
-    const string token(void);
-};
 
 void parser::reduce(parser_state & ps)
 {
@@ -138,12 +44,19 @@ void parser::reduce(parser_state & ps)
 
 	cout << "reduce by " << head << " -> ";
 
+	tree_node * tn = new tree_node(head);
+
 	for(unsigned i = 0; i < n; i++) {
 	    string s = symbol_stack.back();
 
 	    // Pop symbols off the stack and print
 	    cout << s;
 
+	    // Store these symbols in the tree
+	    tn->insert(node_stack.back());
+	    node_stack.pop_back();
+
+	    // Pop the symbol off the stack and put it into the tree
 	    symbol_stack.pop_back();
 
 	    // Pop this state off the stack
@@ -163,14 +76,11 @@ void parser::reduce(parser_state & ps)
 
 	symbol_stack.push_back(head);
 
+	// Push new tree node
+	node_stack.push_back(tn);
+
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
-
-	// ex: stack is "if" and E
-	// current state is STMT: if . E then E else E
-	// and also a bunch of E -> . E ...
-	// need to take E (current symbol on stack) goto new state
-	// state is created from items with E
 
 	parser_state ns;
 
@@ -232,12 +142,20 @@ void parser::run(void)
     for(;;) {
 	cout << "LOOP: " << loop++ << " [token: " << t << "]" << endl;
 
-	int cs = 0, cr = 0;
+	int cs = 0, cr = 0, ca = 0;
 
-	check(t, ps.kernel_items, cs, cr);
-	check(t, ps.nonkernel_items, cs, cr);
+	check(t, ps.kernel_items, cs, cr, ca);
+	check(t, ps.nonkernel_items, cs, cr, ca);
 
-	cout << "shifts: " << cs << ", reduces: " << cr << endl;
+	cout << "shifts: " << cs << ", "
+	     << "reduces: " << cr << ", "
+	     << "accepts: " << ca << endl;
+
+	// ACCEPT
+	if(ca > 0) {
+	    cout << "ACCEPT!" << endl;
+	    break;
+	}
 
 	if(cs > 0 && cr > 0) {
 	    dump("shift/reduce conflict");
@@ -279,9 +197,11 @@ void parser::run(void)
 }
 
 void parser::check(const string & t, const list<parser_item> & l,
-		   int & cs, int & cr)
+		   int & cs, int & cr, int & ca)
 {
     list<parser_item>::const_iterator li;
+
+    bool accept_check = (t == "$");
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); li++) {
@@ -299,7 +219,7 @@ void parser::check(const string & t, const list<parser_item> & l,
 	    }
 	    
 	} else {
-	    // At the end of this item, check for valid reduce
+	    // At the end of this item, check for valid reduce or accept
 
 	    set<string> rs;
 
@@ -307,6 +227,11 @@ void parser::check(const string & t, const list<parser_item> & l,
 
 	    if(rs.count(t) > 0) {
 		cr++;
+	    }
+
+	    // Is this the correct check for ACCEPT?
+	    if(accept_check && i.head == "START" && rs.count(t) > 0) {
+		ca++;
 	    }
 	}
     }
@@ -364,6 +289,9 @@ void parser::shift(const parser_state & ps, const string & t)
     // Finish up shifting
     symbol_stack.push_back(t);
     state_stack.push_back(ns);
+
+    // New node for this symbol
+    node_stack.push_back(new tree_node(t));
 
     return;
 }
@@ -630,6 +558,14 @@ void parser::dump(const char * msg)
 	cout << " state " << sn++ << endl;
 
 	ps.dump();
+    }
+
+    cout << " parse tree:" << endl;
+
+    if(node_stack.size() == 1) {
+	tree_node * tn = node_stack.back();
+
+	tn->dump(2);
     }
 
     return;
