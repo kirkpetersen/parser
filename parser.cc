@@ -42,14 +42,14 @@ void parser::reduce(parser_state & ps)
 	string head = pi.head;
 	unsigned n = pi.symbols.size();
 
-	tree_node * tn = new tree_node(head);
+	tree_node tn(head);
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
 	    string s = symbol_stack.back();
 
 	    // Add to the tree
-	    tn->insert(node_stack.back());
+	    tn.insert(node_stack.back());
 	    node_stack.pop_back();
 
 	    symbol_stack.pop_back();
@@ -61,7 +61,9 @@ void parser::reduce(parser_state & ps)
 	    ps = state_stack.back();
 	}
 
-	cout << "reduce: " << head << " -> ... " << endl;
+	if(verbose > 0) {
+	    cout << "reduce: " << head << " -> ... " << endl;
+	}
 
 	symbol_stack.push_back(head);
 
@@ -77,10 +79,8 @@ void parser::reduce(parser_state & ps)
 	build_items(head, false, ps.kernel_items, ns.kernel_items);
 	build_items(head, false, ps.nonkernel_items, ns.kernel_items);
 
-#if 0
-	// This should never be necessary (?)
+	// Is this correct?
 	closure(ns);
-#endif
 
 	state_stack.push_back(ns);
 
@@ -92,8 +92,6 @@ void parser::reduce(parser_state & ps)
 
 void parser::run(void)
 {
-    // states are kernel + non-kernel items
-
     // start symbol
     string START = "START";
 
@@ -121,24 +119,36 @@ void parser::run(void)
 
     unsigned loop = 0;
 
-    dump("dumping before executing parser");
+    if(verbose > 0) {
+	dump("dumping before executing parser");
+    }
 
-    cout << "[starting the parse]" << endl;
+    if(verbose > 0) {
+	cout << "[starting the parse]" << endl;
+    }
 
     // Get the first token
-    string t = token();
+    token = next_token();
 
     for(;;) {
-	cout << "LOOP: " << loop++ << " [token: " << t << "]" << endl;
+	if(verbose > 0) {
+	    cout << "LOOP: " << loop++ << " [token: " << token << "]" << endl;
+	}
+
+	if(verbose > 1) {
+	    dump("verbose dump (every loop)");
+	}
 
 	int cs = 0, cr = 0, ca = 0;
 
-	check(t, ps.kernel_items, cs, cr, ca);
-	check(t, ps.nonkernel_items, cs, cr, ca);
+	check(token, ps.kernel_items, cs, cr, ca);
+	check(token, ps.nonkernel_items, cs, cr, ca);
 
-	cout << "shifts: " << cs << ", "
-	     << "reduces: " << cr << ", "
-	     << "accepts: " << ca << endl;
+	if(verbose > 0) {
+	    cout << "shifts: " << cs << ", "
+		 << "reduces: " << cr << ", "
+		 << "accepts: " << ca << endl;
+	}
 
 	// ACCEPT
 	if(ca > 0) {
@@ -162,15 +172,16 @@ void parser::run(void)
 	}
 
 	if(cs > 0) {
-	    shift(ps, t);
+	    shift(ps, token);
 
 	    // Set the current state to the one shift() created
 	    ps = state_stack.back();
 
-	    // Time to read a new token...
-	    t = token();
+	    token = next_token();
 
-	    cout << "new token '" << t << "'" << endl;
+	    if(verbose > 0) {
+		cout << "new token '" << token << "'" << endl;
+	    }
 	} else if(cr > 0) {
 	    reduce(ps);
 
@@ -262,11 +273,13 @@ void parser::shift(const parser_state & ps, const string & t)
 {
     parser_state ns;
 
-    cout << "shifting '" << t << "'" << endl;
+    if(verbose > 0) {
+	cout << "shifting '" << t << "'" << endl;
+    }
 
     // Fill in the new state
-    build_items(t, true, ps.kernel_items, ns.kernel_items);
-    build_items(t, true, ps.nonkernel_items, ns.kernel_items);
+    build_items(token, true, ps.kernel_items, ns.kernel_items);
+    build_items(token, true, ps.nonkernel_items, ns.kernel_items);
 
     if(ns.kernel_items.empty()) {
 	cout << "no match for token " << t << endl;
@@ -276,11 +289,11 @@ void parser::shift(const parser_state & ps, const string & t)
     closure(ns);
 
     // Finish up shifting
-    symbol_stack.push_back(t);
+    symbol_stack.push_back(token);
     state_stack.push_back(ns);
 
     // New node for this symbol
-    node_stack.push_back(new tree_node(t));
+    node_stack.push_back(tree_node(token));
 
     return;
 }
@@ -527,6 +540,8 @@ void parser::dump(const char * msg)
 
     cout << "parser state:" << endl;
 
+    cout << "current token: " << token << endl;
+
     cout << " symbol stack:" << endl;
 
     list<string>::const_iterator sy;
@@ -544,29 +559,84 @@ void parser::dump(const char * msg)
     for(st = state_stack.begin(); st != state_stack.end(); st++) {
 	parser_state ps = *st;
 
-	cout << " state " << sn++ << endl;
+	cout << "  state " << sn++ << endl;
 
 	ps.dump();
     }
 
     cout << " parse tree:" << endl;
 
-    if(node_stack.size() == 1) {
-	tree_node * tn = node_stack.back();
+    if(node_stack.size() > 0) {
+	tree_node tn = node_stack.back();
+	node_stack.pop_back();
 
-	tn->dump(2);
+	tn.dump();
     }
 
     return;
 }
 
-const string parser::token(void)
+const string parser::next_token(void)
 {
-    // Simply return the next token
+    int state = 0;
+    string b;
+    char c;
 
-    string s;
+    for(;;) {
+	c = cin.get();
 
-    cin >> s;
+	if(cin.eof()) {
+	    return string("$");
+	}
 
-    return s;
+	switch(state) {
+	case 0: // initial state
+	    if(isspace(c)) {
+		/* do nothing, just consume whitespace */
+	    } else if(isalpha(c)) {
+		b += c;
+		state = 1;
+	    } else if(isdigit(c)) {
+		b += c;
+		state = 2;
+	    } else {
+		// Return everything else as a literal for now
+		char cs[2] = { c, '\0' };
+
+		token_type = token_type_literal;
+		token_value.literal = c;
+
+		return string(cs);
+	    }
+
+	    break;
+
+	case 1: // ID
+	    if(isalnum(c)) {
+		b += c;
+	    } else {
+		cin.unget();
+
+		token_type = token_type_id;
+
+		return string(b);
+	    }
+
+	    break;
+
+	case 2: // NUM
+	    if(isdigit(c)) {
+		b += c;
+	    } else {
+		cin.unget();
+
+		token_type = token_type_num;
+		token_value.num = atoi(b.c_str());
+
+		return string(b);
+	    }
+	}
+    }
+
+    return string("$");
 }

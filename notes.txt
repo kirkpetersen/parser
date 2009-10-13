@@ -1,0 +1,5 @@
+Parser notes
+
+TODO
+- improve the tokenizer to support at least basic functionality
+- introduce the empty string notation and logic

@@ -1,0 +1,34 @@
+START E
+
+E { ELIST }
+E if E then E else E
+
+E E > E
+E E < E
+E E = E
+
+E E + T
+E E - T
+E T
+
+E ID ( E )
+
+T T * F
+T T / F
+T F
+
+F ( E )
+F ID
+F NUM
+
+ELIST E ; ELIST
+ELIST E
+
+ID x
+ID y
+ID z
+ID fn
+
+NUM 0
+NUM 1
+NUM 2

@@ -30,7 +30,7 @@ public:
     }
 
     void dump(void) {
-	cout << "  " << head << " -> ";
+	cout << "   " << head << " -> ";
 
 	unsigned size = symbols.size();
 
@@ -62,7 +62,7 @@ public:
     void dump(void) {
 	list<parser_item>::const_iterator li;
 
-	cout << " kernel items:" << endl;
+	cout << "  kernel items:" << endl;
 
 	for(li = kernel_items.begin(); li != kernel_items.end(); li++) {
 	    parser_item pi = *li;
@@ -70,7 +70,7 @@ public:
 	    pi.dump();
 	}
 
-	cout << " nonkernel items:" << endl;
+	cout << "  nonkernel items:" << endl;
 
 	for(li = nonkernel_items.begin(); li != nonkernel_items.end(); li++) {
 	    parser_item pi = *li;
@@ -82,12 +82,12 @@ public:
 
 class tree_node {
     string symbol;
-    list<tree_node *> nodes;
+    list<tree_node> nodes;
 
 public:
     tree_node(const string & t) : symbol(t) { }
 
-    void insert(tree_node * n) {
+    void insert(tree_node n) {
 	nodes.push_front(n);
 	return;
     }
@@ -98,21 +98,21 @@ public:
 	    s += symbol + " ";
 	}
 
-	list<tree_node *>::const_iterator ti;
+	list<tree_node>::const_iterator ti;
 
 	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
-	    tree_node * tn = *ti;
+	    tree_node tn = *ti;
 
-	    if(tn) {
-		tn->dump2(s);
-	    }
+	    tn.dump2(s);
 	}
 
 	return;
     }
 
-    void dump(unsigned spaces) {
-	for(unsigned i = 0; i < spaces; i++) { cout << ' '; }
+    void dump(unsigned level = 0) {
+	cout << "  ";
+
+	for(unsigned i = 0; i < level; i++) { cout << ' '; }
 
 	string s;
 
@@ -120,19 +120,20 @@ public:
 
 	cout << symbol << " ( " << s << ")" << endl;
 
-	list<tree_node *>::const_iterator ti;
+	list<tree_node>::const_iterator ti;
 
 	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
-	    tree_node * tn = *ti;
+	    tree_node tn = *ti;
 
-	    if(tn) {
-		tn->dump(spaces + 1);
-	    }
+	    tn.dump(level + 1);
 	}
 
 	return;
     }
 };
+
+enum token_type { token_type_eof, token_type_id, token_type_num,
+		  token_type_literal };
 
 class parser {
     map<string, list<vector<string> > > productions;
@@ -140,9 +141,19 @@ class parser {
     list<parser_state> state_stack;
     list<string> symbol_stack;
 
-    list<tree_node *> node_stack;
+    list<tree_node> node_stack;
+
+    enum token_type token_type;
+    string token;
+    union {
+	int num;
+	char literal;
+    } token_value;
+
+    int verbose;
 
 public:
+    parser(int v = 0) : verbose(v) { }
 
     void run(void);
     void closure(parser_state & ps);
@@ -168,5 +179,5 @@ public:
     void check_shift(const string & t,
 		     const list<parser_item> &l1, list<parser_item> & l2);
 
-    const string token(void);
+    const string next_token(void);
 };

@@ -21,13 +21,23 @@ using namespace std;
 
 int main(int argc, char * argv[])
 {
-    parser p;
+    int c, verbose = 0;
 
-    if(!argv[1]) {
+    while((c = getopt(argc, argv, "v")) != EOF) {
+	switch(c) {
+	case 'v':
+	    verbose++;
+	    break;
+	}
+    }
+
+    parser p(verbose);
+
+    if(!argv[optind]) {
 	return 1;
     }
 
-    p.load(argv[1]);
+    p.load(argv[optind]);
 
     p.dump("after load");
 
