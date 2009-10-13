@@ -161,10 +161,13 @@ void parser::run(void)
 	    break;
 	}
 
+#if 0
+	// This is perfectly normal...
 	if(cs > 1) {
 	    dump("shift/shift conflict");
 	    break;
 	}
+#endif
 
 	if(cr > 1) {
 	    dump("reduce/reduce conflict");
