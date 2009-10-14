@@ -24,16 +24,18 @@ F NUM
 ELIST E ; ELIST
 ELIST E
 
-ID A
-ID A ID
+ID WS A WS
+ID WS A ID WS
 
-NUM D
-NUM D NUM
+NUM WS D WS
+NUM WS D NUM WS
 
-WS <space>
-WS <newline>
-WS <tab>
+WS WC WS
 WS <empty>
+
+WC <space>
+WC <newline>
+WC <tab>
 
 D 0
 D 1

@@ -27,6 +27,18 @@ public:
 
     parser_item(const string h, const vector<string> & v)
 	: head(h), symbols(v), index(0) {
+	return;
+    }
+
+    parser_item(const string h, const vector<string> & v,
+		unsigned start, unsigned size) : head(h), index(0) {
+	symbols.resize(size);
+
+	for(unsigned i = 0; i < size; i++) {
+	    symbols[i] = v[i + start];
+	}
+
+	return;
     }
 
     void dump(void) {
@@ -143,6 +155,12 @@ class parser {
 
     list<tree_node> node_stack;
 
+    // These should be cleared whenever the grammar changes
+    map<string, set<string> > first_cache;
+    map<string, set<string> > follows_cache;
+
+    string empty;
+
     enum token_type token_type;
     string token;
     union {
@@ -153,10 +171,10 @@ class parser {
     int verbose;
 
 public:
-    parser(int v = 0) : verbose(v) { }
+    parser(int v = 0) : empty("<empty>"), verbose(v) { }
 
     void run(void);
-    void closure(parser_state & ps);
+
     void dump(const char * msg = NULL);
     void load(const char * filename);
 
@@ -170,11 +188,17 @@ public:
 
     void reduce(parser_state & ps);
 
-    void first(const string & h, set<string> & rs);
-    void first(const string & h, map<string, bool> & v, set<string> & rs);
+    void closure(parser_state & ps, map<string, bool> & added, bool k);
+    void closure(parser_state & ps);
+
+    bool first(const string & h, set<string> & rs, bool e = true);
+    bool first(const string & h, map<string, bool> & v, set<string> & rs, bool e = true);
+    bool first(const vector<string> & b, unsigned st, set<string> & rs, bool e = true);
 
     void follows(const string & fs, set<string> & rs);
     void follows(const string & fs, map<string, bool> & v, set<string> & rs);
+
+    bool empty_check(const string & s);
 
     void check_shift(const string & t,
 		     const list<parser_item> &l1, list<parser_item> & l2);

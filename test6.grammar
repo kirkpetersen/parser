@@ -1,7 +1,11 @@
 START E
 
 E { ELIST }
-E if E then E else E
+E IF E THEN E ELSE E
+
+IF <space> i f <space>
+THEN <space> t h e n <space>
+ELSE <space> e l s e <space>
 
 E E > E
 E E < E
@@ -27,7 +31,7 @@ ELIST E
 ID x
 ID y
 ID z
-ID fn
+ID f n
 
 NUM 0
 NUM 1

@@ -210,6 +210,9 @@ void parser::check(const string & t, const list<parser_item> & l,
     for(li = l.begin(); li != l.end(); li++) {
 	parser_item i = *li;
 
+	// TODO also check for reduce whenever the remaining
+	// symbols can evaluate to <empty>
+
 	if(i.index < i.symbols.size()) {
 	    // Not at the end of the item, check for shift
 
@@ -301,16 +304,18 @@ void parser::shift(const parser_state & ps, const string & t)
     return;
 }
 
-void parser::first(const string & h, map<string, bool> & v, set<string> & rs)
+bool parser::first(const string & h, map<string, bool> & v, set<string> & rs, bool e)
 {
-    // If it is a terminal, it goes on the list
+    bool se = false;
+
+    // If it is a terminal, it goes on the list and we return
     if(symbol_is_terminal(h)) {
 	rs.insert(h);
-	return;
+	return se;
     }
 
     if(v[h]) {
-	return;
+	return se;
     }
 
     v[h] = true;
@@ -318,26 +323,82 @@ void parser::first(const string & h, map<string, bool> & v, set<string> & rs)
     list<vector<string> >::const_iterator li;
 
     for(li = productions[h].begin(); li != productions[h].end(); li++) {
-	string s = (*li)[0];
+	vector<string> b = *li;
 
-	if(symbol_is_terminal(s)) {
-	    rs.insert(s);
-	} else {
-	    first(s, v, rs);
+	if(b[0] == empty) {
+	    // Indicate that we saw <empty>
+	    se = true;
+
+	    // But only add it to the set if requested
+	    if(e) {
+		rs.insert(empty);
+	    }
+
+	    continue;
+	}
+
+	unsigned i;
+
+	for(i = 0; i < b.size(); i++) {
+	    string s = b[i];
+
+	    // Now add the FIRST of the current symbol (minus <empty>)
+	    if(first(s, v, rs, false)) {
+		// If <empty> was seen, we continue with this body
+		se = true;
+		continue;
+	    } else {
+		// Otherwise break and continue with the next body
+		break;
+	    }
+	}
+
+	// If we make it to the end of the body, it means that
+	// All of the symbols include a potential <empty>, so
+	// include it in the set (if specified)
+	if(i == b.size()) {
+	    se = true;
+
+	    if(e) {
+		rs.insert(empty);
+	    }
 	}
     }
 
-    return;
+    return se;
 }
 
-void parser::first(const string & h, set<string> & rs)
+bool parser::first(const string & h, set<string> & rs, bool e)
 {
     map<string, bool> visited;
 
     // Call the recursive version with the visited map
-    first(h, visited, rs);
+    return first(h, visited, rs, e);
+}
 
-    return;
+bool parser::first(const vector<string> & b, unsigned st, set<string> & rs, bool e)
+{
+    unsigned i;
+
+    // This can be merged with the other FIRST...
+
+    for(i = st; i < b.size(); i++) {
+	string s = b[i];
+
+	if(first(s, rs, false)) {
+	    // If <empty> was seen, we continue with this body
+	    continue;
+	} else {
+	    return false;
+	}
+    }
+
+    if(e) {
+	rs.insert(empty);
+    }
+
+    // This FIRST simply returns true if all elements contain <empty>
+    return true;
 }
 
 void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
@@ -357,8 +418,8 @@ void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
 
     // Iterate over all productions
     for(mi = productions.begin(); mi != productions.end(); mi++) {
-	const string head = mi->first;
-	list<vector<string> > body = mi->second;
+	const string & head = mi->first;
+	const list<vector<string> > & body = mi->second;
 
 	list<vector<string> >::const_iterator li;
 
@@ -369,8 +430,10 @@ void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
 	    // All but the last symbol
 	    for(unsigned i = 0; i < size - 1; i++) {
 		if(p[i] == fs) {
-		    // FIRST of the next symbol
-		    first(p[i + 1], rs);
+		    // FIRST of the remaining symbols
+		    if(first(p, i + 1, rs, false)) {
+			follows(head, v, rs);
+		    }
 		}
 	    }
 
@@ -393,78 +456,103 @@ void parser::follows(const string & fs, set<string> & rs)
     return;
 }
 
-void parser::closure(parser_state & ps)
+bool parser::empty_check(const string & s)
 {
-    map<string, bool> added;
-    list<parser_item>::const_iterator ki;
+    list<vector<string> >::const_iterator li;
 
-    for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
-	parser_item i = *ki;
+    for(li = productions[s].begin(); li != productions[s].end(); li++) {
+	vector<string> b = *li;
 
-	// If this is the end of the item, nothing to do
-	if(i.index == i.symbols.size()) {
-	    continue;
+	if(b[0] == "<empty>") {
+	    return true;
 	}
-
-	// This is meant to test if the symbols is terminal
-	if(symbol_is_terminal(i.symbols[i.index])) {
-	    continue;
-	}
-
-	string head = i.symbols[i.index];
-
-	if(added[head]) {
-	    continue;
-	}
-
-	list<vector<string> >::const_iterator li;
-
-	// For each right side of each production, add a non-kernel item
-	for(li = productions[head].begin();
-	    li != productions[head].end(); li++) {
-	    parser_item pi(head, *li);
-
-	    ps.nonkernel_items.push_back(pi);
-	}
-
-	added[head] = true;
     }
+
+    return false;
+}
+
+void parser::closure(parser_state & ps, map<string, bool> & added, bool k)
+{
+    list<parser_item> & items = k ? ps.kernel_items : ps.nonkernel_items;
+    list<parser_item>::const_iterator ii;
 
     unsigned x;
 
     do {
-	// set to 0 and increment for each new item
 	x = 0;
 
-	for(ki = ps.nonkernel_items.begin();
-	    ki != ps.nonkernel_items.end(); ki++) {
-	    parser_item i = *ki;
+	for(ii = items.begin(); ii != items.end(); ii++) {
+	    parser_item i = *ii;
 
-	    if(symbol_is_terminal(i.symbols[i.index])) {
+	    // If this is the end of the item, nothing to do
+	    if(i.index == i.symbols.size()) {
 		continue;
 	    }
 
-	    string head = i.symbols[i.index];
+	    // We are currently looking at something like:
+	    //   E -> X . Y
+	    // In this case, the symbol to investigate is Y
 
-	    if(added[head]) {
+	    string s = i.symbols[i.index];
+
+	    // No need to close on terminal symbols
+	    if(symbol_is_terminal(s)) {
 		continue;
 	    }
+
+	    // No need to continue if we've already added this symbol
+	    if(added[s]) {
+		continue;
+	    }
+
+	    // Lookup the symbol and create a new nonkernel item for
+	    // each of the bodies
 
 	    list<vector<string> >::const_iterator li;
 
-	    for(li = productions[head].begin();
-		li != productions[head].end(); li++) {
-		parser_item pi(head, *li);
+	    // For each right side of each production, add a non-kernel item
+	    for(li = productions[s].begin();
+		li != productions[s].end(); li++) {
+		vector<string> b = *li;
+		parser_item pi(s, b);
 
 		ps.nonkernel_items.push_back(pi);
+
+		// ex: s == "NUM", NUM -> WS D WS | WS D NUM WS
+
+		for(unsigned i = 0; i < b.size() - 1; i++) {
+		    // Break as soon as a symbol doesn't evaluate
+		    // to <empty>
+		    if(!empty_check(b[i])) {
+			break;
+		    }
+
+		    parser_item pi2(s, b, i + 1, b.size() - (i + 1));
+
+		    ps.nonkernel_items.push_back(pi2);
+		}
 	    }
 
-	    added[head] = true;
+	    added[s] = true;
 
 	    x++;
 	}
 
     } while(x > 0);
+
+    return;
+}
+
+void parser::closure(parser_state & ps)
+{
+    map<string, bool> added;
+    list<parser_item>::const_iterator ki;
+
+    // Kernel items
+    closure(ps, added, true);
+
+    // Nonkernel items
+    closure(ps, added, false);
 
     return;
 }
@@ -489,6 +577,14 @@ void parser::load(const char * filename)
 	string sym;
 
 	while(iss >> sym) {
+	    if(sym == "<space>") {
+		sym = " ";
+	    } else if(sym == "<newline>") {
+		sym = "\n";
+	    } else if(sym == "<tab>") {
+		sym = "\t";
+	    }
+
 	    symbols.push_back(sym);
 	}
 
@@ -581,65 +677,15 @@ void parser::dump(const char * msg)
 
 const string parser::next_token(void)
 {
-    int state = 0;
-    string b;
-    char c;
+    char c[2];
 
-    for(;;) {
-	c = cin.get();
+    c[0] = fgetc(stdin);
 
-	if(cin.eof()) {
-	    return string("$");
-	}
-
-	switch(state) {
-	case 0: // initial state
-	    if(isspace(c)) {
-		/* do nothing, just consume whitespace */
-	    } else if(isalpha(c)) {
-		b += c;
-		state = 1;
-	    } else if(isdigit(c)) {
-		b += c;
-		state = 2;
-	    } else {
-		// Return everything else as a literal for now
-		char cs[2] = { c, '\0' };
-
-		token_type = token_type_literal;
-		token_value.literal = c;
-
-		return string(cs);
-	    }
-
-	    break;
-
-	case 1: // ID
-	    if(isalnum(c)) {
-		b += c;
-	    } else {
-		cin.unget();
-
-		token_type = token_type_id;
-
-		return string(b);
-	    }
-
-	    break;
-
-	case 2: // NUM
-	    if(isdigit(c)) {
-		b += c;
-	    } else {
-		cin.unget();
-
-		token_type = token_type_num;
-		token_value.num = atoi(b.c_str());
-
-		return string(b);
-	    }
-	}
+    if(c[0] == EOF) {
+	return string("$");
     }
 
-    return string("$");
+    c[1] = '\0';
+
+    return string(c);
 }
