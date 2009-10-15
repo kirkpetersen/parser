@@ -1,4 +1,4 @@
 START S
 S C C
-C c C
-C d
+C :id: C
+C :id:

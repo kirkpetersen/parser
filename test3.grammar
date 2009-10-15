@@ -2,5 +2,5 @@ START S
 S L = R
 S R
 L * R
-L x
+L :id:
 R L

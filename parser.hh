@@ -94,10 +94,12 @@ public:
 
 class tree_node {
     string symbol;
+    string value;
     list<tree_node> nodes;
 
 public:
-    tree_node(const string & t) : symbol(t) { }
+    tree_node(const string & t) : symbol(t), value("") { }
+    tree_node(const string & t, const string & v) : symbol(t), value(v) { }
 
     void insert(tree_node n) {
 	nodes.push_front(n);
@@ -107,7 +109,7 @@ public:
     // Assemble a string of everything below this node...
     void dump2(string & s) {
 	if(symbol_is_terminal(symbol)) {
-	    s += symbol + " ";
+	    s += value + " ";
 	}
 
 	list<tree_node>::const_iterator ti;
@@ -130,7 +132,7 @@ public:
 
 	dump2(s);
 
-	cout << symbol << " ( " << s << ")" << endl;
+	cout << value << " ( " << s << ")" << endl;
 
 	list<tree_node>::const_iterator ti;
 
@@ -143,9 +145,6 @@ public:
 	return;
     }
 };
-
-enum token_type { token_type_eof, token_type_id, token_type_num,
-		  token_type_literal };
 
 class parser {
     map<string, list<vector<string> > > productions;
@@ -161,17 +160,13 @@ class parser {
 
     string empty;
 
-    enum token_type token_type;
     string token;
-    union {
-	int num;
-	char literal;
-    } token_value;
+    string token_value;
 
     int verbose;
 
 public:
-    parser(int v = 0) : empty("<empty>"), verbose(v) { }
+    parser(int v = 0) : empty(":empty:"), verbose(v) { }
 
     void run(void);
 
@@ -203,5 +198,5 @@ public:
     void check_shift(const string & t,
 		     const list<parser_item> &l1, list<parser_item> & l2);
 
-    const string next_token(void);
+    void next_token(void);
 };

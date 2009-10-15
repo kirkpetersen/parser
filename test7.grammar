@@ -1,7 +1,7 @@
 START E
 
 E { ELIST }
-E if E then E else E
+E E ? E : E
 
 E E > E
 E E < E
@@ -11,66 +11,15 @@ E E + T
 E E - T
 E T
 
-E ID ( E )
+E :id: ( E )
 
 T T * F
 T T / F
 T F
 
 F ( E )
-F ID
-F NUM
+F :id:
+F :num:
 
 ELIST E ; ELIST
 ELIST E
-
-ID WS A WS
-ID WS A ID WS
-
-NUM WS D WS
-NUM WS D NUM WS
-
-WS WC WS
-WS <empty>
-
-WC <space>
-WC <newline>
-WC <tab>
-
-D 0
-D 1
-D 2
-D 3
-D 4
-D 5
-D 6
-D 7
-D 8
-D 9
-
-A a
-A b
-A c
-A d
-A e
-A f
-A g
-A h
-A i
-A j
-A k
-A l
-A m
-A n
-A o
-A p
-A q
-A r
-A s
-A t
-A u
-A v
-A w
-A x
-A y
-A z

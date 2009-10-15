@@ -1,6 +1,7 @@
 # parser makefile
 
-CPPFLAGS = -Wall -Werror -g
+CPPFLAGS = -Wall -Werror -g $(OPTFLAGS)
+LDFLAGS = $(OPTFLAGS)
 
 all:	parser test
 
@@ -9,10 +10,10 @@ test.o:	test.cc parser.hh
 main.o:	main.cc parser.hh
 
 test:	test.o parser.o
-	g++ -o test test.o parser.o
+	g++ $(LDFLAGS) -o test test.o parser.o
 
 parser:	main.o parser.o
-	g++ -o parser main.o parser.o
+	g++ $(LDFLAGS) -o parser main.o parser.o
 
 clean:
 	$(RM) test parser *.o

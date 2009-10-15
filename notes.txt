@@ -1,7 +1,7 @@
 Parser notes
 
 TODO
-- cleanup current <empty>/tokenizer changes
-- possibly introduce full (but simple) tokenizer
-- improve the tokenizer to support at least basic functionality
-- introduce the empty string notation and logic
+- introduce full (but simple) tokenizer
+  - read token spec from file, like grammar
+- support LR(1)
+- debug :empty: support
