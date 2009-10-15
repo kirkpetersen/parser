@@ -1,64 +1,47 @@
 Parser experiment
 
-I've got a variety of thoughts on programming language design.
+A quick brain dump for now...
 
-One idea is to extend languages. This is possible with some languages
-but definitely not with anything that uses a static parser generator.
+This is a library to help users parse things.
 
-This code is a prototype of a bottom up parser generator that is very
-dynamic.
+It currently supports simple LR grammars. It will eventually support
+LR(1) or LALR(1) grammars.
 
-Here are the two situations to consider:
+Unlike tools like bison or yacc, this library will generate parsers at
+runtime. It will also allow the user to load a grammar and make
+modifications, including adding or removing productions from the
+grammar.
 
-1. a grammar could be modified or extended
-  - imagine a library file that contains the C grammar
-  - could be easily loaded by the user
-  - it could be modified
-  - once loaded and modified, it could be used to parse C files and
-    do static analysis, batch changes, or whatever the user could think
-    of.  not at all possible with most parsers that are embedded within
-    large compiler suites.
+Some possible uses I'm imagining:
 
-2. a language could allow for defining new syntax which is used immediately
-  - the user might define a new syntax element at the start of a block
-  - the new syntax would be inserted into the appropriate part of the grammar
-  - the parser would immediately be able to see this and match with it
+- user writes a small program to load a C grammar into the parser
+  generator, uses parser to syntax check files, doesn't need to load a
+  full compiler into memory
 
-The goal is to support both of these, but the second one isn't an
-absolute requirement.
+- compiler writer uses parser generator library to load the grammar
+  for the default language and then makes changes to the grammar based
+  on command line switches (ex: removes custom features when -ansi is
+  passed in)
 
-* Goals (very long term)
+- new syntax is added for new types. new syntax for expressions with
+  these types, new initializers, etc.
 
-The eventual goal is to create a new language. I want any non-trivial
-program to have layers of specification.  The first layer might be
-something like a makefile:
+- new syntax is added on the fly... a possible example:
 
-  dependencies {
-    main <- main.o foo.o
-    main.o <- main.l
-    foo.o <- foo.l
-    main.analysis <- main.l 
+  foo()
+  {
+    {
+      # insert a new expression body, to be used immediately
+      # (the semantics of this is to be defined elsewhere)
+      syntax-translate { E -> E ** E }
+
+      # use the new expression
+      print 2 ** 16
+    }
+
+    # this should be a syntax error
+    print 2 ** 16
   }
 
-  grammar g = load normal grammar
-  compiler c = load normal compiler
-
-  load vector math syntax and optimizations
-
-  if(!production) {
-    g.add_syntax { DEBUG -> define DEBUG macro right here for this project }
-  }
-
-  g.add_syntax(vector)
-  c.set_grammar(g)
-
-  rules {
-    .l -> .o { use compiler c for these transformations }
-
-    .l -> .analysis { use grammar g to parse code, analyze }
-  }
-
-What I'm trying to show is that this is the first layer and it creates
-a grammar and compiler that compile the next layer. This might mean
-adding syntax for a hardware feature (vectors), defining macros, etc.
-
+- user wants to parse fragments of a language, so they load the full
+  grammar and then point the start state at the appropriate production
