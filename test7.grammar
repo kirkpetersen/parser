@@ -1,4 +1,5 @@
-START ELIST
+ELIST E ; ELIST
+ELIST :empty:
 
 E { ELIST }
 E E ? E : E
@@ -20,6 +21,3 @@ T F
 F ( E )
 F :id:
 F :num:
-
-ELIST E ; ELIST
-ELIST :empty:

@@ -147,6 +147,26 @@ int test2(void)
     return 0;
 }
 
+int test3(void)
+{
+    parser p;
+
+    set<string>::const_iterator si;
+
+    set<string> rs;
+
+    cout << "loading C grammar" << endl;
+
+    p.load_bnf("c.bnf");
+
+    p.first(string("translation_unit"), rs);
+    dump_set("FIRST(translation_unit): ", rs);
+
+    p.dump("bnf dump");
+
+    return 0;
+}
+
 int main(int argc, char * argv[])
 {
     int ret;
@@ -157,6 +177,9 @@ int main(int argc, char * argv[])
 #endif
 
     ret = test2();
+    assert(ret == 0);
+
+    ret = test3();
     assert(ret == 0);
 
     return 0;

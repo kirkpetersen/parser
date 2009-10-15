@@ -17,8 +17,6 @@
 
 using namespace std;
 
-bool symbol_is_terminal(const string & s);
-
 class parser_item {
 public:
     string head;
@@ -96,10 +94,14 @@ class tree_node {
     string symbol;
     string value;
     list<tree_node> nodes;
+    bool terminal;
 
 public:
-    tree_node(const string & t) : symbol(t), value("") { }
-    tree_node(const string & t, const string & v) : symbol(t), value(v) { }
+    tree_node(const string & t)
+	: symbol(t), value(""), terminal(false) { }
+
+    tree_node(const string & t, const string & v)
+	: symbol(t), value(v), terminal(true) { }
 
     void insert(tree_node n) {
 	nodes.push_front(n);
@@ -108,7 +110,7 @@ public:
 
     // Assemble a string of everything below this node...
     void dump_below(void) {
-	if(symbol_is_terminal(symbol)) {
+	if(terminal) {
 	    cout << value << " ";
 	}
 
@@ -128,7 +130,7 @@ public:
 
 	dump_below();
 
-	if(symbol_is_terminal(symbol)) {
+	if(terminal) {
 	    cout << "[" << symbol << ", " << value << "]" << endl;
 	} else {
 	    cout << "[" << symbol << "]" << endl;
@@ -146,7 +148,23 @@ public:
     }
 };
 
+class symbol {
+    string type;
+    string value;
+    bool terminal;
+
+public:
+    symbol(const string & t, const string & v, bool tl)
+	: type(t), value(v), terminal(tl) { }
+
+    bool operator==(const symbol & s) {
+	return terminal == s.terminal && type == s.type;
+    }
+};
+
 class parser {
+    string start;
+
     map<string, list<vector<string> > > productions;
 
     list<parser_state> state_stack;
@@ -159,6 +177,8 @@ class parser {
     map<string, set<string> > follows_cache;
 
     string empty;
+
+    set<string> tokens;
 
     string token;
     string token_value;
@@ -179,12 +199,21 @@ public:
 	}
     }
 
+    void load_bnf(const char * filename);
     void load(const char * filename);
 
-    void check(const string & t, const list<parser_item> & l,
+    bool terminal(const string & s) {
+	if(productions.count(s) > 0) {
+	    return false;
+	} else {
+	    return true;
+	}
+    }
+
+    void check(const list<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
-    void build_items(const string & t, bool terminal,
+    void build_items(const string & t, bool tl,
 		     const list<parser_item> & l, list<parser_item> & n);
 
     void shift(const parser_state & ps, const string & t);

@@ -1,5 +1,3 @@
-START E
-
 E { ELIST }
 E E ? E : E
 

@@ -19,21 +19,6 @@
 
 using namespace std;
 
-bool symbol_is_terminal(const string & s)
-{
-    if(s == ":empty:") {
-	return false;
-    } else if(s == ":num:") {
-	return true;
-    } else if(s == ":id:") {
-	return true;
-    } else if(isupper(s[0])) {
-	return false;
-    }
-
-    return true;
-}
-
 void parser::reduce(parser_state & ps)
 {
     list<parser_item>::const_iterator ki;
@@ -96,12 +81,9 @@ void parser::reduce(parser_state & ps)
 
 void parser::run(void)
 {
-    // start symbol
-    string START = "START";
+    list<vector<string> > sp = productions[start];
 
-    list<vector<string> > start = productions[START];
-
-    if(start.empty()) {
+    if(sp.empty()) {
 	cerr << "no start state!" << endl;
 	return;
     }
@@ -111,8 +93,8 @@ void parser::run(void)
 
     list<vector<string> >::const_iterator li;
 
-    for(li = start.begin(); li != start.end(); li++) {
-	parser_item pi(START, *li);
+    for(li = sp.begin(); li != sp.end(); li++) {
+	parser_item pi(start, *li);
 
 	ps.kernel_items.push_back(pi);
     }
@@ -150,8 +132,8 @@ void parser::run(void)
 
 	int cs = 0, cr = 0, ca = 0;
 
-	check(token, ps.kernel_items, cs, cr, ca);
-	check(token, ps.nonkernel_items, cs, cr, ca);
+	check(ps.kernel_items, cs, cr, ca);
+	check(ps.nonkernel_items, cs, cr, ca);
 
 	if(verbose > 0) {
 	    cout << "shifts: " << cs << ", "
@@ -196,12 +178,12 @@ void parser::run(void)
     return;
 }
 
-void parser::check(const string & t, const list<parser_item> & l,
+void parser::check(const list<parser_item> & l,
 		   int & cs, int & cr, int & ca)
 {
     list<parser_item>::const_iterator li;
 
-    bool accept_check = (t == "$");
+    bool accept_check = (token == "$");
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); li++) {
@@ -213,11 +195,11 @@ void parser::check(const string & t, const list<parser_item> & l,
 	if(i.index < i.symbols.size()) {
 	    // Not at the end of the item, check for shift
 
-	    if(!symbol_is_terminal(i.symbols[i.index])) {
+	    if(!terminal(i.symbols[i.index])) {
 		continue;
 	    }
 
-	    if(t == i.symbols[i.index]) {
+	    if(token == i.symbols[i.index]) {
 		cs++;
 	    }
 	    
@@ -228,12 +210,12 @@ void parser::check(const string & t, const list<parser_item> & l,
 
 	    follows(i.head, rs);
 
-	    if(rs.count(t) > 0) {
+	    if(rs.count(token) > 0) {
 		cr++;
 	    }
 
 	    // Is this the correct check for ACCEPT?
-	    if(accept_check && i.head == "START" && rs.count(t) > 0) {
+	    if(accept_check && i.head == start && rs.count(token) > 0) {
 		ca++;
 	    }
 	}
@@ -242,7 +224,7 @@ void parser::check(const string & t, const list<parser_item> & l,
     return;
 }
 
-void parser::build_items(const string & t, bool terminal,
+void parser::build_items(const string & t, bool tl,
 			 const list<parser_item> & l, list<parser_item> & n)
 {
     list<parser_item>::const_iterator li;
@@ -256,7 +238,7 @@ void parser::build_items(const string & t, bool terminal,
 
 	string s = i.symbols[i.index];
 
-	if(terminal && !symbol_is_terminal(s)) {
+	if(tl && !terminal(s)) {
 	    continue;
 	}
 
@@ -306,7 +288,7 @@ bool parser::first(const string & h, map<string, bool> & v, set<string> & rs, bo
     bool se = false;
 
     // If it is a terminal, it goes on the list and we return
-    if(symbol_is_terminal(h)) {
+    if(terminal(h)) {
 	rs.insert(h);
 	return se;
     }
@@ -322,8 +304,8 @@ bool parser::first(const string & h, map<string, bool> & v, set<string> & rs, bo
     for(li = productions[h].begin(); li != productions[h].end(); li++) {
 	const vector<string> & b = *li;
 
-	if(b[0] == empty) {
-	    // Indicate that we saw :empty:
+	if(b[0].empty()) {
+	    // Indicate that we saw an empty body
 	    se = true;
 
 	    // But only add it to the set if requested
@@ -339,9 +321,9 @@ bool parser::first(const string & h, map<string, bool> & v, set<string> & rs, bo
 	for(i = 0; i < b.size(); i++) {
 	    const string & s = b[i];
 
-	    // Now add the FIRST of the current symbol (minus :empty:)
+	    // Now add the FIRST of the current symbol (minus empty string)
 	    if(first(s, v, rs, false)) {
-		// If :empty: was seen, we continue with this body
+		// If empty string was seen, we continue with this body
 		se = true;
 		continue;
 	    } else {
@@ -351,7 +333,7 @@ bool parser::first(const string & h, map<string, bool> & v, set<string> & rs, bo
 	}
 
 	// If we make it to the end of the body, it means that
-	// All of the symbols include a potential :empty:, so
+	// All of the symbols include a potential empty body, so
 	// include it in the set (if specified)
 	if(i == b.size()) {
 	    se = true;
@@ -383,7 +365,7 @@ bool parser::first(const vector<string> & b, unsigned st, set<string> & rs, bool
 	const string & s = b[i];
 
 	if(first(s, rs, false)) {
-	    // If :empty: was seen, we continue with this body
+	    // If empty body was seen, we continue with this body
 	    continue;
 	} else {
 	    return false;
@@ -394,7 +376,7 @@ bool parser::first(const vector<string> & b, unsigned st, set<string> & rs, bool
 	rs.insert(empty);
     }
 
-    // This FIRST simply returns true if all elements contain :empty:
+    // This FIRST simply returns true if all elements contain empty body
     return true;
 }
 
@@ -407,7 +389,7 @@ void parser::follows(const string & fs, map<string, bool> & v, set<string> & rs)
 
     v[fs] = true;
 
-    if(fs == "START") {
+    if(fs == start) {
 	rs.insert(string("$"));
     }
 
@@ -460,7 +442,7 @@ bool parser::empty_check(const string & s)
     for(li = productions[s].begin(); li != productions[s].end(); li++) {
 	const vector<string> & b = *li;
 
-	if(b[0] == ":empty:") {
+	if(b[0].empty()) {
 	    return true;
 	}
     }
@@ -493,7 +475,7 @@ void parser::closure(parser_state & ps, map<string, bool> & added, bool k)
 	    string s = i.symbols[i.index];
 
 	    // No need to close on terminal symbols
-	    if(symbol_is_terminal(s)) {
+	    if(terminal(s)) {
 		continue;
 	    }
 
@@ -519,7 +501,7 @@ void parser::closure(parser_state & ps, map<string, bool> & added, bool k)
 
 		for(unsigned i = 0; i < b.size() - 1; i++) {
 		    // Break as soon as a symbol doesn't evaluate
-		    // to :empty:
+		    // to empty body
 		    if(!empty_check(b[i])) {
 			break;
 		    }
@@ -554,9 +536,114 @@ void parser::closure(parser_state & ps)
     return;
 }
 
+void parser::load_bnf(const char * filename)
+{
+    // simple state machine?
+    // start by expecting head
+    // then colon indicates body
+    // pipe indicates another body for the same head
+    // semicolon indicates the end of a production
+    // heads are all simple strings (with underscores), as are symbols
+
+    int p = 0, done = 0, state = 0;
+
+    vector<string> body;
+
+    fstream fs(filename, fstream::in);
+
+    while(!done) {
+	string t;
+
+	fs >> t;
+
+	switch(state) {
+	case 0: // start state
+	    if(t == "%token") {
+		state = 1;
+	    } else {
+	    }
+
+	    break;
+
+	case 1: // token names
+	    if(t == "%%") {
+		done = 1;
+		break;
+	    } else {
+		tokens.insert(t);
+	    }
+
+	    break;
+	}
+    }
+
+    string head;
+
+    state = 0;
+
+    for(;;) {
+	string t;
+
+	fs >> t;
+
+	if(fs.eof()) {
+	    break;
+	}
+
+	switch(state) {
+	case 0: // start state
+	    // always the head
+	    head = t;
+	    state = 1;
+
+	    break;
+
+	case 1: // expect a colon
+	    if(t == ":") {
+		state = 2;
+	    } else {
+		cerr << "error reading grammar" << endl;
+	    }
+
+	    break;
+
+	case 2:
+	    if(t == "|") {
+		// end of this body, put into productions
+		productions[head].push_back(body);
+		body.clear();
+
+	    } else if(t == ";") {
+		// end of this production
+		productions[head].push_back(body);
+		body.clear();
+		state = 0;
+
+		if(p++ == 0) {
+		    // This is the first state, so it is the start state
+		    start = head;
+		}
+	    } else {
+		// determine if the symbol is nonterminal,
+		// terminal from the token list, or a literal (';')
+
+		// add to the current body
+		body.push_back(t);
+	    }
+
+	    break;
+	}
+    }
+
+    fs.close();
+
+    return;
+}
+
 void parser::load(const char * filename)
 {
     char line[80];
+    int p = 0;
 
     fstream fs(filename, fstream::in);
 
@@ -569,6 +656,10 @@ void parser::load(const char * filename)
 
 	if(head.empty()) {
 	    continue;
+	}
+
+	if(p++ == 0) {
+	    start = head;
 	}
 
 	string sym;
@@ -593,7 +684,7 @@ void parser::dump(const char * msg)
 	cout << "[" << msg << "]" << endl;
     }
 
-    cout << "productions:" << endl;
+    cout << "productions [start: " << start << "]" << endl;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); mi++) {
@@ -699,11 +790,11 @@ void parser::next_token(void)
 	    break;
 
 	case 1: // ID
-	    if(isalnum(c)) {
+	    if(isalnum(c) || c == '_') {
 		token_value += c;
 	    } else {
 		cin.unget();
-		token = ":id:";
+		token = "id";
 		return;
 	    }
 	    break;
@@ -713,7 +804,7 @@ void parser::next_token(void)
 		token_value += c;
 	    } else {
 		cin.unget();
-		token = ":num:";
+		token = "num";
 		return;
 	    }
 	    break;
