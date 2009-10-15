@@ -12,6 +12,10 @@ runtime. It will also allow the user to load a grammar and make
 modifications, including adding or removing productions from the
 grammar.
 
+Ideally, the syntax could be modified on the fly. This should be
+possible due to the fact that the parser states are created on demand,
+but I haven't gotten to that feature yet.
+
 Some possible uses I'm imagining:
 
 - user writes a small program to load a C grammar into the parser
