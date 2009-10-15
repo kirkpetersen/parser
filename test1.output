@@ -1,0 +1,73 @@
+[starting the parse]
+LOOP: 0, token: if, token_value: if
+shifts: 1, reduces: 0, accepts: 0
+shifting '[if,if]'
+LOOP: 1, token: num, token_value: 0
+shifts: 1, reduces: 0, accepts: 0
+shifting '[num,0]'
+LOOP: 2, token: +, token_value: +
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 3, token: +, token_value: +
+shifts: 1, reduces: 0, accepts: 0
+shifting '[+,+]'
+LOOP: 4, token: num, token_value: 1
+shifts: 1, reduces: 0, accepts: 0
+shifting '[num,1]'
+LOOP: 5, token: then, token_value: then
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 6, token: then, token_value: then
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 7, token: then, token_value: then
+shifts: 1, reduces: 0, accepts: 0
+shifting '[then,then]'
+LOOP: 8, token: id, token_value: x
+shifts: 1, reduces: 0, accepts: 0
+shifting '[id,x]'
+LOOP: 9, token: *, token_value: *
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 10, token: *, token_value: *
+shifts: 1, reduces: 0, accepts: 0
+shifting '[*,*]'
+LOOP: 11, token: id, token_value: y
+shifts: 1, reduces: 0, accepts: 0
+shifting '[id,y]'
+LOOP: 12, token: else, token_value: else
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 13, token: else, token_value: else
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 14, token: else, token_value: else
+shifts: 1, reduces: 0, accepts: 0
+shifting '[else,else]'
+LOOP: 15, token: id, token_value: y
+shifts: 1, reduces: 0, accepts: 0
+shifting '[id,y]'
+LOOP: 16, token: /, token_value: /
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 17, token: /, token_value: /
+shifts: 1, reduces: 0, accepts: 0
+shifting '[/,/]'
+LOOP: 18, token: id, token_value: z
+shifts: 1, reduces: 0, accepts: 0
+shifting '[id,z]'
+LOOP: 19, token: $, token_value: $
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 20, token: $, token_value: $
+shifts: 0, reduces: 1, accepts: 0
+reduce: E -> ... 
+LOOP: 21, token: $, token_value: $
+shifts: 0, reduces: 1, accepts: 1
+ACCEPT!
+y / z  <- E
+ y  <- E
+  y  <- [id,y]
+ /  <- [/,/]
+ z  <- E
+  z  <- [id,z]
