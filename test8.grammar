@@ -1,14 +1,12 @@
-START E
+%token
+%%
 
-E T E2
+E : T E2 ;
 
-E2 + T E2
-E2 :empty:
+E2 : '+' T E2 | empty ;
 
-T  F T2
+T : F T2 ;
 
-T2 * F T2
-T2 :empty:
+T2 : '*' F T2 | empty ;
 
-F  ( E )
-F :id:
+F : '(' E ')' | id ;

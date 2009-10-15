@@ -21,14 +21,10 @@ using namespace std;
 
 int main(int argc, char * argv[])
 {
-    int c, bnf = 0, verbose = 0;
+    int c, verbose = 0;
 
-    while((c = getopt(argc, argv, "bv")) != EOF) {
+    while((c = getopt(argc, argv, "v")) != EOF) {
 	switch(c) {
-	case 'b':
-	    bnf = 1;
-	    break;
-
 	case 'v':
 	    verbose++;
 	    break;
@@ -41,11 +37,7 @@ int main(int argc, char * argv[])
 	return 1;
     }
 
-    if(bnf) {
-	p.load_bnf(argv[optind]);
-    } else {
-	p.load(argv[optind]);
-    }
+    p.load(argv[optind]);
 
     p.run();
 

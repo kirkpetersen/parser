@@ -1,9 +1,6 @@
-STMT E ? E : E
+%token id num
+%%
 
-E :id:
-E :num:
+STMT : 'if' E 'then' E 'else' E ;
 
-E E + E
-E E - E
-E E * E
-E E / E
+E : id | num | E '+' E | E '-' E | E '*' E | E '/' E ;

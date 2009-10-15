@@ -1,23 +1,11 @@
-E { ELIST }
-E E ? E : E
+%token
+%%
 
-E E > E
-E E < E
-E E = E
+ELIST : E ';' ELIST | E ;
 
-E E + T
-E E - T
-E T
+E : '{' ELIST '}' | E '?' E ':' E | E '+' T | E '-' T | T | id '(' E ')' ;
 
-E :id: ( E )
+T : T '*' F | T '/' F | F ;
 
-T T * F
-T T / F
-T F
+F : '(' E ')' | id | num ;
 
-F ( E )
-F :id:
-F :num:
-
-ELIST E ; ELIST
-ELIST E

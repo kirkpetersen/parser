@@ -120,7 +120,7 @@ abstract_declarator	: pointer
 			| pointer direct_abstract_declarator
 			|	direct_abstract_declarator
 			;
-direct_abstract_declarator: '(' abstract_declarator ')'
+direct_abstract_declarator	: '(' abstract_declarator ')'
 			| direct_abstract_declarator '[' const_exp ']'
 			|				'[' const_exp ']'
 			| direct_abstract_declarator '['	']'

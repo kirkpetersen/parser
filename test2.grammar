@@ -1,8 +1,8 @@
-E E + T
-E T
+%token
+%%
 
-T T * F
-T F
+E : E '+' T | T ;
 
-F ( E )
-F :id:
+T : T '*' F | F ;
+
+F : '(' E ')' | id ;

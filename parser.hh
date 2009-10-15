@@ -17,91 +17,51 @@
 
 using namespace std;
 
-class parser_item {
+class symbol {
 public:
-    string head;
-    vector<string> symbols;
-    unsigned index;
+    string type;
+    string value;
 
-    parser_item(const string h, const vector<string> & v)
-	: head(h), symbols(v), index(0) {
-	return;
+    symbol(void) : type(""), value("") { }
+    symbol(const char * t) : type(t), value(t) { }
+    symbol(const string & t) : type(t), value(t) { }
+    symbol(const string & t, const string & v) : type(t), value(v) { }
+
+    bool empty(void) const {
+	return type.empty();
     }
 
-    parser_item(const string h, const vector<string> & v,
-		unsigned start, unsigned size) : head(h), index(0) {
-	symbols.resize(size);
-
-	for(unsigned i = 0; i < size; i++) {
-	    symbols[i] = v[i + start];
-	}
-
-	return;
+    bool operator==(const symbol & s) const {
+	bool result = type == s.type;
+	return result;
     }
 
-    void dump(void) {
-	cout << "   " << head << " -> ";
-
-	unsigned size = symbols.size();
-
-	for(unsigned i = 0; i < size; i++) {
-	    if(i == index) {
-		cout << ". ";
-	    }
-
-	    cout << symbols[i];
-
-	    if(i < size - 1) {
-		cout << " ";
-	    }
-	}
-
-	if(index == size) {
-	    cout << " .";
-	}
-
-	cout << endl;
+    bool operator<(const symbol & s) const {
+	bool result = type < s.type;
+	return result;
     }
 };
 
-class parser_state {
-public:
+ostream & operator<<(ostream & out, const symbol & s);
+
+struct parser_item {
+    symbol head;
+    vector<symbol> symbols;
+    unsigned index;
+};
+
+struct parser_state {
     list<parser_item> kernel_items;
     list<parser_item> nonkernel_items;
-
-    void dump(void) {
-	list<parser_item>::const_iterator li;
-
-	cout << "  kernel items:" << endl;
-
-	for(li = kernel_items.begin(); li != kernel_items.end(); li++) {
-	    parser_item pi = *li;
-
-	    pi.dump();
-	}
-
-	cout << "  nonkernel items:" << endl;
-
-	for(li = nonkernel_items.begin(); li != nonkernel_items.end(); li++) {
-	    parser_item pi = *li;
-
-	    pi.dump();
-	}
-    }
 };
 
 class tree_node {
-    string symbol;
-    string value;
+    symbol head;
     list<tree_node> nodes;
     bool terminal;
 
 public:
-    tree_node(const string & t)
-	: symbol(t), value(""), terminal(false) { }
-
-    tree_node(const string & t, const string & v)
-	: symbol(t), value(v), terminal(true) { }
+    tree_node(const symbol & t, bool tl) : head(t), terminal(tl) { }
 
     void insert(tree_node n) {
 	nodes.push_front(n);
@@ -109,9 +69,9 @@ public:
     }
 
     // Assemble a string of everything below this node...
-    void dump_below(void) {
+    void dump_below(void) const {
 	if(terminal) {
-	    cout << value << " ";
+	    cout << head.value << " ";
 	}
 
 	list<tree_node>::const_iterator ti;
@@ -125,15 +85,15 @@ public:
 	return;
     }
 
-    void dump(unsigned level = 0) {
+    void dump(unsigned level = 0) const {
 	for(unsigned i = 0; i < level; i++) { cout << ' '; }
 
 	dump_below();
 
 	if(terminal) {
-	    cout << "[" << symbol << ", " << value << "]" << endl;
+	    cout << " <- " << head << endl;
 	} else {
-	    cout << "[" << symbol << "]" << endl;
+	    cout << " <- " << head.type << endl;
 	}
 
 	list<tree_node>::const_iterator ti;
@@ -148,40 +108,22 @@ public:
     }
 };
 
-class symbol {
-    string type;
-    string value;
-    bool terminal;
-
-public:
-    symbol(const string & t, const string & v, bool tl)
-	: type(t), value(v), terminal(tl) { }
-
-    bool operator==(const symbol & s) {
-	return terminal == s.terminal && type == s.type;
-    }
-};
-
 class parser {
-    string start;
+    symbol start;
 
-    map<string, list<vector<string> > > productions;
+    map<symbol, list<vector<symbol> > > productions;
 
     list<parser_state> state_stack;
-    list<string> symbol_stack;
+    list<symbol> symbol_stack;
 
     list<tree_node> node_stack;
 
-    // These should be cleared whenever the grammar changes
-    map<string, set<string> > first_cache;
-    map<string, set<string> > follows_cache;
+    symbol empty;
 
-    string empty;
+    set<symbol> tokens;
+    set<symbol> literals;
 
-    set<string> tokens;
-
-    string token;
-    string token_value;
+    symbol token;
 
     int verbose;
 
@@ -190,7 +132,11 @@ public:
 
     void run(void);
 
+    void dump_set(const char * msg, const set<symbol> & rs);
+
     void dump(const char * msg = NULL);
+    void dump_state(const parser_state & ps);
+    void dump_item(const parser_item & pi);
 
     void dump_tree(void) {
 	if(!node_stack.empty()) {
@@ -199,10 +145,9 @@ public:
 	}
     }
 
-    void load_bnf(const char * filename);
     void load(const char * filename);
 
-    bool terminal(const string & s) {
+    bool terminal(const symbol & s) const {
 	if(productions.count(s) > 0) {
 	    return false;
 	} else {
@@ -213,24 +158,28 @@ public:
     void check(const list<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
-    void build_items(const string & t, bool tl,
+    parser_item make_item(const symbol & h, const vector<symbol> & b);
+    parser_item make_item(const symbol & h, const vector<symbol> & b,
+			  unsigned st);
+
+    void build_items(const symbol & t, bool tl,
 		     const list<parser_item> & l, list<parser_item> & n);
 
-    void shift(const parser_state & ps, const string & t);
+    void shift(const parser_state & ps, const symbol & t);
 
     void reduce(parser_state & ps);
 
-    void closure(parser_state & ps, map<string, bool> & added, bool k);
+    void closure(parser_state & ps, map<symbol, bool> & added, bool k);
     void closure(parser_state & ps);
 
-    bool first(const string & h, set<string> & rs, bool e = true);
-    bool first(const string & h, map<string, bool> & v, set<string> & rs, bool e = true);
-    bool first(const vector<string> & b, unsigned st, set<string> & rs, bool e = true);
+    bool first(const symbol & h, set<symbol> & rs);
+    bool first(const symbol & h, map<symbol, bool> & v, set<symbol> & rs);
+    bool first(const vector<symbol> & b, unsigned st, set<symbol> & rs);
 
-    void follows(const string & fs, set<string> & rs);
-    void follows(const string & fs, map<string, bool> & v, set<string> & rs);
+    void follows(const symbol & fs, set<symbol> & rs);
+    void follows(const symbol & fs, map<symbol, bool> & v, set<symbol> & rs);
 
-    bool empty_check(const string & s);
+    bool empty_check(const symbol & s);
 
     void check_shift(const string & t,
 		     const list<parser_item> &l1, list<parser_item> & l2);
