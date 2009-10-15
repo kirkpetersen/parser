@@ -1,4 +1,4 @@
-START E
+START ELIST
 
 E { ELIST }
 E E ? E : E
@@ -22,4 +22,4 @@ F :id:
 F :num:
 
 ELIST E ; ELIST
-ELIST E
+ELIST :empty:

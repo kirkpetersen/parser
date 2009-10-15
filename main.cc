@@ -39,11 +39,9 @@ int main(int argc, char * argv[])
 
     p.load(argv[optind]);
 
-    p.dump("after load");
-
     p.run();
 
-    p.dump("after run");
+    p.dump_tree();
 
     return 0;
 }

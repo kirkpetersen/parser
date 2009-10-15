@@ -123,7 +123,7 @@ void parser::run(void)
 
     unsigned loop = 0;
 
-    if(verbose > 0) {
+    if(verbose > 1) {
 	dump("dumping before executing parser");
     }
 
@@ -169,14 +169,6 @@ void parser::run(void)
 	    dump("shift/reduce conflict");
 	    break;
 	}
-
-#if 0
-	// This is perfectly normal...
-	if(cs > 1) {
-	    dump("shift/shift conflict");
-	    break;
-	}
-#endif
 
 	if(cr > 1) {
 	    dump("reduce/reduce conflict");

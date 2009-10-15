@@ -107,9 +107,9 @@ public:
     }
 
     // Assemble a string of everything below this node...
-    void dump2(string & s) {
+    void dump_below(void) {
 	if(symbol_is_terminal(symbol)) {
-	    s += value + " ";
+	    cout << value << " ";
 	}
 
 	list<tree_node>::const_iterator ti;
@@ -117,22 +117,22 @@ public:
 	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
 	    tree_node tn = *ti;
 
-	    tn.dump2(s);
+	    tn.dump_below();
 	}
 
 	return;
     }
 
     void dump(unsigned level = 0) {
-	cout << "  ";
-
 	for(unsigned i = 0; i < level; i++) { cout << ' '; }
 
-	string s;
+	dump_below();
 
-	dump2(s);
-
-	cout << value << " ( " << s << ")" << endl;
+	if(symbol_is_terminal(symbol)) {
+	    cout << "[" << symbol << ", " << value << "]" << endl;
+	} else {
+	    cout << "[" << symbol << "]" << endl;
+	}
 
 	list<tree_node>::const_iterator ti;
 
@@ -171,6 +171,14 @@ public:
     void run(void);
 
     void dump(const char * msg = NULL);
+
+    void dump_tree(void) {
+	if(!node_stack.empty()) {
+	    tree_node tn = node_stack.back();
+	    tn.dump();
+	}
+    }
+
     void load(const char * filename);
 
     void check(const string & t, const list<parser_item> & l,
