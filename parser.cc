@@ -34,9 +34,11 @@ void parser::reduce(parser_state & ps)
 {
     list<parser_item>::const_iterator ki;
 
+    // Only kernel items can contain possible reductions
     for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
 	const parser_item & pi = *ki;
 
+	// Skip any item without the dot at the end
 	if(pi.index != pi.symbols.size()) {
 	    continue;
 	}
@@ -114,7 +116,6 @@ void parser::run(void)
 
     for(li = sp.begin(); li != sp.end(); li++) {
 	parser_item pi = make_item(start, *li, symbol("$"));
-
 	ps.kernel_items.push_back(pi);
     }
 
@@ -123,14 +124,6 @@ void parser::run(void)
     state_stack.push_back(ps);
 
     unsigned loop = 0;
-
-    if(verbose > 1) {
-	dump("dumping before executing parser");
-    }
-
-    if(verbose > 0) {
-	cout << "[starting the parse]" << endl;
-    }
 
     // Get the first token
     next_token();
@@ -151,6 +144,7 @@ void parser::run(void)
 
 	int cs = 0, cr = 0, ca = 0;
 
+	// Check for shift, reduce, or accept conditions
 	check(ps.kernel_items, cs, cr, ca);
 	check(ps.nonkernel_items, cs, cr, ca);
 
@@ -186,7 +180,7 @@ void parser::run(void)
 	    ps = state_stack.back();
 
 	} else {
-	    dump("no action!");
+	    dump("ERROR!");
 	    break;
 	}
     }
@@ -199,17 +193,13 @@ void parser::check(const list<parser_item> & l,
 {
     list<parser_item>::const_iterator li;
 
-    bool accept_check = (token == symbol("$"));
-
     // Check each item in the list
     for(li = l.begin(); li != l.end(); li++) {
 	const parser_item & i = *li;
 
-	// TODO also check for reduce whenever the remaining
-	// symbols can evaluate to empty
-
 	if(i.index < i.symbols.size()) {
-	    // Not at the end of the item, check for shift
+	    // Not at the end of the item, so we should check for
+	    // shift conditions
 
 	    if(!terminal(i.symbols[i.index])) {
 		continue;
@@ -222,12 +212,14 @@ void parser::check(const list<parser_item> & l,
 	} else {
 	    // At the end of this item, check for valid reduce or accept
 
-	    if(token == i.terminal) {
-		cr++;
-	    }
-
-	    if(accept_check && i.head == start) {
-		ca++;
+	    if(i.head == start) {
+		if(token == symbol("$")) {
+		    ca++;
+		}
+	    } else {
+		if(token == i.terminal) {
+		    cr++;
+		}
 	    }
 	}
     }
@@ -275,6 +267,7 @@ void parser::build_items(const symbol & t,
 {
     list<parser_item>::const_iterator li;
 
+    // For each item from the previous state...
     for(li = l.begin(); li != l.end(); li++) {
 	const parser_item & i = *li;
 
@@ -284,11 +277,14 @@ void parser::build_items(const symbol & t,
 
 	symbol s = i.symbols[i.index];
 
+	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
+	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
 	    parser_item ni = i;
 
 	    ni.index++;
 
+	    // Add the new item to the new state
 	    n.push_back(ni);
 	}
     }
@@ -360,7 +356,7 @@ bool parser::first(const symbol & h, map<symbol, bool> & v, set<symbol> & rs)
 	for(i = 0; i < b.size(); i++) {
 	    const symbol & s = b[i];
 
-	    // Now add the FIRST of the current symbol (minus empty symbol)
+	    // Now add the FIRST of the current symbol
 	    if(first(s, v, rs)) {
 		// If empty symbol was seen, we continue with this body
 		se = true;
@@ -371,9 +367,9 @@ bool parser::first(const symbol & h, map<symbol, bool> & v, set<symbol> & rs)
 	    }
 	}
 
-	// If we make it to the end of the body, it means that
-	// All of the symbols include a potential empty body, so
-	// include it in the set (if specified)
+	// If we make it to the end of the body, it means that All of
+	// the symbols include an empty body, so indicate that we've
+	// seen it
 	if(i == b.size()) {
 	    se = true;
 	}
@@ -394,7 +390,7 @@ bool parser::first(const vector<symbol> & b, unsigned st, set<symbol> & rs)
 {
     unsigned i;
 
-    // This can be merged with the other FIRST...
+    // This can possibly be merged with the other FIRST...
 
     for(i = st; i < b.size(); i++) {
 	const symbol & s = b[i];
@@ -407,7 +403,8 @@ bool parser::first(const vector<symbol> & b, unsigned st, set<symbol> & rs)
 	}
     }
 
-    // This FIRST simply returns true if all elements contain empty body
+    // Unlike the other FIRST() functions above, this returns true
+    // only if all symbols yield a possible empty
     return true;
 }
 
@@ -504,12 +501,12 @@ void parser::closure(parser_state & ps, map<symbol, bool> & added,
 
 	    added[s] = true;
 
+	    // Lookup the symbol and create a new nonkernel item for
+	    // each of the bodies
+
 	    if(productions.count(s) == 0) {
 		continue;
 	    }
-
-	    // Lookup the symbol and create a new nonkernel item for
-	    // each of the bodies
 
 	    list<vector<symbol> >::const_iterator li;
 
@@ -522,32 +519,18 @@ void parser::closure(parser_state & ps, map<symbol, bool> & added,
 		    continue;
 		}
 
-		// Create temporary vector for FIRST(/B/a)
+		// Create temporary vector for [/B/, a]
 		vector<symbol> beta(i.symbols);
 
 		beta.push_back(i.terminal);
-
-		if(verbose > 2) {
-		    cout << "beta: ";
-		    for(unsigned j = i.index + 1; j < beta.size(); j++) {
-			cout << beta[j] << " ";
-		    }
-
-		    cout << endl;
-		}
 
 		set<symbol> rs;
 
 		first(beta, i.index + 1, rs);
 
-		if(verbose > 2) {
-		    cout << "FIRST(" << i.head.type << ")";
-		    dump_set(": ", rs);
-		}
-
 		set<symbol>::const_iterator si;
 
-		// for ( each terminal b in FIRST(/B/a)
+		// for ( each terminal b in FIRST(/B/ a) )
 		for(si = rs.begin(); si != rs.end(); si++) {
 		    parser_item pi = make_item(s, b, *si);
 
@@ -838,7 +821,7 @@ void parser::dump_item(const parser_item & pi) {
 	cout << " .";
     }
 
-    cout << " [" << pi.terminal.type << "]" << endl;
+    cout << " {" << pi.terminal.type << "}" << endl;
 
     return;
 }
