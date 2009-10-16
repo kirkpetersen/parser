@@ -7,7 +7,7 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[num,0]'
 LOOP: 2, token: +, token_value: +
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> 0 
 LOOP: 3, token: +, token_value: +
 shifts: 1, reduces: 0, accepts: 0
 shifting '[+,+]'
@@ -16,10 +16,10 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[num,1]'
 LOOP: 5, token: then, token_value: then
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> 1 
 LOOP: 6, token: then, token_value: then
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> 0 + 1 
 LOOP: 7, token: then, token_value: then
 shifts: 1, reduces: 0, accepts: 0
 shifting '[then,then]'
@@ -28,7 +28,7 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[id,x]'
 LOOP: 9, token: *, token_value: *
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> x 
 LOOP: 10, token: *, token_value: *
 shifts: 1, reduces: 0, accepts: 0
 shifting '[*,*]'
@@ -37,10 +37,10 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[id,y]'
 LOOP: 12, token: else, token_value: else
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> y 
 LOOP: 13, token: else, token_value: else
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> x * y 
 LOOP: 14, token: else, token_value: else
 shifts: 1, reduces: 0, accepts: 0
 shifting '[else,else]'
@@ -49,7 +49,7 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[id,y]'
 LOOP: 16, token: /, token_value: /
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> y 
 LOOP: 17, token: /, token_value: /
 shifts: 1, reduces: 0, accepts: 0
 shifting '[/,/]'
@@ -58,10 +58,10 @@ shifts: 1, reduces: 0, accepts: 0
 shifting '[id,z]'
 LOOP: 19, token: $, token_value: $
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> z 
 LOOP: 20, token: $, token_value: $
 shifts: 0, reduces: 1, accepts: 0
-reduce: E -> ... 
+reduce: E -> y / z 
 LOOP: 21, token: $, token_value: $
 shifts: 0, reduces: 1, accepts: 1
 ACCEPT!

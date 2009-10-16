@@ -62,7 +62,11 @@ void parser::reduce(parser_state & ps)
 	}
 
 	if(verbose > 0) {
-	    cout << "reduce: " << head.type << " -> ... " << endl;
+	    cout << "reduce: " << head.type << " -> ";
+
+	    tn.dump_below();
+
+	    cout << endl;
 	}
 
 	symbol_stack.push_back(head);

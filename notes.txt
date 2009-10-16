@@ -1,7 +1,8 @@
 Parser notes
 
 TODO
-- introduce full (but simple) tokenizer
-  - read token spec from file, like grammar
 - support LR(1)
-- debug :empty: support
+- convert production has into stack of productions
+  - this is required for supporting scoped grammar changes
+- write simple test for extending syntax on the fly
+  - introduce custom code to trigger
