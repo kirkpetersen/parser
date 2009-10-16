@@ -1,9 +1,14 @@
-%token
+%token id num
 %%
 
 ELIST : E ';' ELIST | E ;
 
-E : '{' ELIST '}' | E '?' E ':' E | E '+' T | E '-' T | T | id '(' E ')' ;
+E : '{' ELIST '}'
+  | E = E
+  | 'if' E 'then' E 'else' E
+  | E '+' T
+  | E '-' T
+  | T ;
 
 T : T '*' F | T '/' F | F ;
 

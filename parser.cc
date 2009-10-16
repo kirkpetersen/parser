@@ -156,12 +156,6 @@ void parser::run(void)
 		 << "accepts: " << ca << endl;
 	}
 
-	// ACCEPT
-	if(ca > 0) {
-	    cout << "ACCEPT!" << endl;
-	    break;
-	}
-
 	if(cs > 0 && cr > 0) {
 	    dump("shift/reduce conflict");
 	    break;
@@ -172,7 +166,10 @@ void parser::run(void)
 	    break;
 	}
 
-	if(cs > 0) {
+	if(ca > 0) {
+	    cout << "ACCEPT!" << endl;
+	    break;
+	} else if(cs > 0) {
 	    shift(ps, token);
 
 	    // Set the current state to the one shift() created
@@ -205,7 +202,7 @@ void parser::check(const list<parser_item> & l,
 	const parser_item & i = *li;
 
 	// TODO also check for reduce whenever the remaining
-	// symbols can evaluate to :empty:
+	// symbols can evaluate to empty
 
 	if(i.index < i.symbols.size()) {
 	    // Not at the end of the item, check for shift
@@ -358,10 +355,8 @@ bool parser::first(const symbol & h, map<symbol, bool> & v, set<symbol> & rs)
     for(li = productions[h].begin(); li != productions[h].end(); li++) {
 	const vector<symbol> & b = *li;
 
-	if(b[0].empty()) {
-	    // Indicate that we saw an empty body
+	if(b.empty()) {
 	    se = true;
-
 	    continue;
 	}
 
@@ -445,6 +440,11 @@ void parser::follows(const symbol & fs, map<symbol, bool> & v, set<symbol> & rs)
 
 	for(li = body.begin(); li != body.end(); li++) {
 	    const vector<symbol> & p = *li;
+
+	    if(p.empty()) {
+		continue;
+	    }
+
 	    unsigned size = p.size();
 
 	    // All but the last symbol
@@ -487,7 +487,7 @@ bool parser::empty_check(const symbol & s)
     for(li = productions[s].begin(); li != productions[s].end(); li++) {
 	const vector<symbol> & b = *li;
 
-	if(b[0].empty()) {
+	if(b.empty()) {
 	    return true;
 	}
     }
@@ -544,6 +544,11 @@ void parser::closure(parser_state & ps, map<symbol, bool> & added, bool k)
 	    for(li = productions[s].begin();
 		li != productions[s].end(); li++) {
 		const vector<symbol> & b = *li;
+
+		if(b.empty()) {
+		    continue;
+		}
+
 		parser_item pi = make_item(s, b);
 
 		ps.nonkernel_items.push_back(pi);
@@ -663,9 +668,13 @@ void parser::load(const char * filename)
 		body.clear();
 		state = 0;
 
+		// If this is the first state...
 		if(p++ == 0) {
-		    // This is the first state, so it is the start state
-		    start = head;
+		    vector<symbol> body2;
+
+		    body2.push_back(head);
+
+		    productions[start].push_back(body2);
 		}
 	    } else {
 		// determine if the symbol is nonterminal,
@@ -720,7 +729,7 @@ void parser::dump(const char * msg)
     dump_set("tokens: ", tokens);
     dump_set("literals: ", literals);
 
-    cout << "productions [start: " << start.type << "]" << endl;
+    cout << "productions:" << endl;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); mi++) {

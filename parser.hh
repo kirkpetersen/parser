@@ -118,8 +118,6 @@ class parser {
 
     list<tree_node> node_stack;
 
-    symbol empty;
-
     set<symbol> tokens;
     set<symbol> literals;
 
@@ -128,7 +126,7 @@ class parser {
     int verbose;
 
 public:
-    parser(int v = 0) : empty(":empty:"), verbose(v) { }
+    parser(int v = 0) : start("START"), verbose(v) { }
 
     void run(void);
 
