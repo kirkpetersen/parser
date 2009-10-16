@@ -150,7 +150,7 @@ void parser::run(void)
 	check(ps.kernel_items, cs, cr, ca);
 	check(ps.nonkernel_items, cs, cr, ca);
 
-	if(verbose > 0) {
+	if(verbose > 1) {
 	    cout << "shifts: " << cs << ", "
 		 << "reduces: " << cr << ", "
 		 << "accepts: " << ca << endl;
