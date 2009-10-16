@@ -19,50 +19,66 @@
 
 using namespace std;
 
-int test1(void)
+int run_test(const char * name);
+
+int test_empty(void);
+int test_c(void);
+
+struct test {
+    const char * name;
+    int (*fn)(void);
+} tests[] = {
+    { "empty", test_empty },
+    { "c", test_c },
+    { NULL, NULL }
+};
+
+int main(int argc, char * argv[])
 {
-    parser p;
+    unsigned run = 0;
+    int c, ret;
 
-    p.load("test5.grammar");
+    while((c = getopt(argc, argv, "t:")) != EOF) {
+	switch(c) {
+	case 't':
+	    ret = run_test(optarg);
+	    run++;
 
-    set<symbol>::const_iterator si;
+	    if(ret != 0) {
+		return ret;
+	    }
 
-    set<symbol> rs;
-    bool e;
+	    break;
+	}
+    }
 
-    e = p.first(symbol("START"), rs);
-    p.dump_set("FIRST(START): ", rs);
+    if(run > 0) {
+	return 0;
+    }
 
-    rs.clear();
-
-    p.follows(symbol("START"), rs);
-    p.dump_set("FOLLOWS(START): ", rs);
-    cout << (e ? "[empty]" : "[not empty]") << endl;
-
-    rs.clear();
-
-    p.first(symbol("E"), rs);
-    p.dump_set("FIRST(E): ", rs);
-
-    rs.clear();
-
-    p.follows(symbol("E"), rs);
-    p.dump_set("FOLLOWS(E): ", rs);
-
-    rs.clear();
-
-    p.first(symbol("+"), rs);
-    p.dump_set("FIRST(+): ", rs);
-
-    rs.clear();
-
-    p.follows(symbol("D"), rs);
-    p.dump_set("FOLLOWS(D): ", rs);
+    for(unsigned i = 0; tests[i].name; i++) {
+	run_test(tests[i].name);
+    }
 
     return 0;
 }
 
-int test2(void)
+int run_test(const char * name)
+{
+    for(unsigned i = 0; tests[i].name; i++) {
+	if(strcmp(name, tests[i].name) == 0) {
+	    int ret = tests[i].fn();
+
+	    const char * result = (ret == 0) ? "PASS" : "FAIL";
+
+	    cout << "test " << tests[i].name << ": " << result << endl;
+	}
+    }
+
+    return 0;
+}
+
+int test_empty(void)
 {
     parser p;
 
@@ -75,26 +91,31 @@ int test2(void)
 
     e = p.first(symbol("F"), rs);
     p.dump_set("FIRST(F): ", rs);
+    assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("T"), rs);
     p.dump_set("FIRST(T): ", rs);
+    assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("E"), rs);
     p.dump_set("FIRST(E): ", rs);
+    assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("E2"), rs);
     p.dump_set("FIRST(E2): ", rs);
+    assert(e == true);
 
     rs.clear();
 
     e = p.first(symbol("T2"), rs);
     p.dump_set("FIRST(T2): ", rs);
+    assert(e == true);
 
     rs.clear();
 
@@ -135,7 +156,7 @@ int test2(void)
     return 0;
 }
 
-int test3(void)
+int test_c(void)
 {
     parser p;
 
@@ -145,12 +166,12 @@ int test3(void)
 
     cout << "loading C grammar" << endl;
 
-    p.load("c.bnf");
+    p.load("c.grammar");
 
     p.first(symbol("translation_unit"), rs);
     p.dump_set("FIRST(translation_unit): ", rs);
 
-    p.dump("bnf dump");
+    p.dump("dump");
 
     return 0;
 }
@@ -176,27 +197,6 @@ int test4(void)
     rs.clear();
 
     p.dump("shift/reduce dump");
-
-    return 0;
-}
-
-int main(int argc, char * argv[])
-{
-    int ret;
-
-#if 0
-    ret = test1();
-    assert(ret == 0);
-#endif
-
-    ret = test2();
-    assert(ret == 0);
-
-    ret = test3();
-    assert(ret == 0);
-
-    ret = test4();
-    assert(ret == 0);
 
     return 0;
 }

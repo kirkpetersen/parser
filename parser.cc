@@ -80,10 +80,14 @@ void parser::reduce(parser_state & ps)
 	parser_state ns;
 
 	// Fill in the new state
-	build_items(head, false, ps.kernel_items, ns.kernel_items);
-	build_items(head, false, ps.nonkernel_items, ns.kernel_items);
+	build_items(head, ps.kernel_items, ns.kernel_items);
+	build_items(head, ps.nonkernel_items, ns.kernel_items);
 
-	// Is this correct?
+	if(ns.kernel_items.empty()) {
+	    cout << "no match for " << head << endl;
+	    return;
+	}
+
 	closure(ns);
 
 	state_stack.push_back(ns);
@@ -109,7 +113,7 @@ void parser::run(void)
     list<vector<symbol> >::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); li++) {
-	parser_item pi = make_item(start, *li);
+	parser_item pi = make_item(start, *li, symbol("$"));
 
 	ps.kernel_items.push_back(pi);
     }
@@ -218,21 +222,11 @@ void parser::check(const list<parser_item> & l,
 	} else {
 	    // At the end of this item, check for valid reduce or accept
 
-	    set<symbol> rs;
-
-	    follows(i.head, rs);
-
-	    if(verbose > 2) {
-		cout << "FOLLOWS(" << i.head << ")";
-		dump_set(": ", rs);
-	    }
-
-	    if(rs.count(token) > 0) {
+	    if(token == i.terminal) {
 		cr++;
 	    }
 
-	    // Is this the correct check for ACCEPT?
-	    if(accept_check && i.head == start && rs.count(token) > 0) {
+	    if(accept_check && i.head == start) {
 		ca++;
 	    }
 	}
@@ -241,7 +235,8 @@ void parser::check(const list<parser_item> & l,
     return;
 }
 
-parser_item parser::make_item(const symbol & h, const vector<symbol> & b)
+parser_item parser::make_item(const symbol & h, const vector<symbol> & b,
+			      const symbol & t)
 {
     parser_item pi;
 
@@ -249,11 +244,13 @@ parser_item parser::make_item(const symbol & h, const vector<symbol> & b)
     pi.symbols = b;
     pi.index = 0;
 
+    pi.terminal = t;
+
     return pi;
 }
 
 parser_item parser::make_item(const symbol & h, const vector<symbol> & b,
-			      unsigned st)
+			      const symbol & t, unsigned st)
 {
     parser_item pi;
 
@@ -268,10 +265,12 @@ parser_item parser::make_item(const symbol & h, const vector<symbol> & b,
 	pi.symbols[i] = b[i];
     }
 
+    pi.terminal = t;
+
     return pi;
 }
 
-void parser::build_items(const symbol & t, bool tl,
+void parser::build_items(const symbol & t,
 			 const list<parser_item> & l, list<parser_item> & n)
 {
     list<parser_item>::const_iterator li;
@@ -284,10 +283,6 @@ void parser::build_items(const symbol & t, bool tl,
 	}
 
 	symbol s = i.symbols[i.index];
-
-	if(tl && !terminal(s)) {
-	    continue;
-	}
 
 	if(t == s) {
 	    parser_item ni = i;
@@ -310,8 +305,8 @@ void parser::shift(const parser_state & ps, const symbol & t)
     }
 
     // Fill in the new state
-    build_items(token, true, ps.kernel_items, ns.kernel_items);
-    build_items(token, true, ps.nonkernel_items, ns.kernel_items);
+    build_items(token, ps.kernel_items, ns.kernel_items);
+    build_items(token, ps.nonkernel_items, ns.kernel_items);
 
     if(ns.kernel_items.empty()) {
 	cout << "no match for token " << t << endl;
@@ -476,46 +471,24 @@ void parser::follows(const symbol & fs, set<symbol> & rs)
     return;
 }
 
-bool parser::empty_check(const symbol & s)
+void parser::closure(parser_state & ps, map<symbol, bool> & added,
+		     const list<parser_item> & items)
 {
-    list<vector<symbol> >::const_iterator li;
-
-    if(productions.count(s) == 0) {
-	return false;
-    }
-
-    for(li = productions[s].begin(); li != productions[s].end(); li++) {
-	const vector<symbol> & b = *li;
-
-	if(b.empty()) {
-	    return true;
-	}
-    }
-
-    return false;
-}
-
-void parser::closure(parser_state & ps, map<symbol, bool> & added, bool k)
-{
-    const list<parser_item> & items = k ? ps.kernel_items : ps.nonkernel_items;
-    list<parser_item>::const_iterator ii;
-
     unsigned x;
 
     do {
 	x = 0;
 
+	list<parser_item>::const_iterator ii;
+
+	// for ( each item [A -> /a/ . B /B/, a] in I )
 	for(ii = items.begin(); ii != items.end(); ii++) {
 	    const parser_item & i = *ii;
 
 	    // If this is the end of the item, nothing to do
-	    if(i.index == i.symbols.size()) {
+	    if(i.index >= i.symbols.size()) {
 		continue;
 	    }
-
-	    // We are currently looking at something like:
-	    //   E -> X . Y
-	    // In this case, the symbol to investigate is Y
 
 	    symbol s = i.symbols[i.index];
 
@@ -540,7 +513,7 @@ void parser::closure(parser_state & ps, map<symbol, bool> & added, bool k)
 
 	    list<vector<symbol> >::const_iterator li;
 
-	    // For each right side of each production, add a non-kernel item
+	    // for ( each production B -> y in G' )
 	    for(li = productions[s].begin();
 		li != productions[s].end(); li++) {
 		const vector<symbol> & b = *li;
@@ -549,26 +522,40 @@ void parser::closure(parser_state & ps, map<symbol, bool> & added, bool k)
 		    continue;
 		}
 
-		parser_item pi = make_item(s, b);
+		// Create temporary vector for FIRST(/B/a)
+		vector<symbol> beta(i.symbols);
 
-		ps.nonkernel_items.push_back(pi);
+		beta.push_back(i.terminal);
 
-		// ex: s == "NUM", NUM -> WS D WS | WS D NUM WS
-
-		for(unsigned i = 0; i < b.size() - 1; i++) {
-		    // Break as soon as a symbol doesn't evaluate
-		    // to empty body
-		    if(!empty_check(b[i])) {
-			break;
+		if(verbose > 2) {
+		    cout << "beta: ";
+		    for(unsigned j = i.index + 1; j < beta.size(); j++) {
+			cout << beta[j] << " ";
 		    }
 
-		    parser_item pi2 = make_item(s, b, i + 1);
+		    cout << endl;
+		}
 
-		    ps.nonkernel_items.push_back(pi2);
+		set<symbol> rs;
+
+		first(beta, i.index + 1, rs);
+
+		if(verbose > 2) {
+		    cout << "FIRST(" << i.head.type << ")";
+		    dump_set(": ", rs);
+		}
+
+		set<symbol>::const_iterator si;
+
+		// for ( each terminal b in FIRST(/B/a)
+		for(si = rs.begin(); si != rs.end(); si++) {
+		    parser_item pi = make_item(s, b, *si);
+
+		    // add [B -> . y, b] to set I
+		    ps.nonkernel_items.push_back(pi);
+		    x++;
 		}
 	    }
-
-	    x++;
 	}
 
     } while(x > 0);
@@ -581,11 +568,8 @@ void parser::closure(parser_state & ps)
     map<symbol, bool> added;
     list<parser_item>::const_iterator ki;
 
-    // Kernel items
-    closure(ps, added, true);
-
-    // Nonkernel items
-    closure(ps, added, false);
+    closure(ps, added, ps.kernel_items);
+    closure(ps, added, ps.nonkernel_items);
 
     return;
 }
@@ -726,43 +710,45 @@ void parser::dump(const char * msg)
 	cout << "[" << msg << "]" << endl;
     }
 
-    dump_set("tokens: ", tokens);
-    dump_set("literals: ", literals);
+    if(verbose > 2) {
+	dump_set("tokens: ", tokens);
+	dump_set("literals: ", literals);
 
-    cout << "productions:" << endl;
+	cout << "productions:" << endl;
 
-    // For each production...
-    for(mi = productions.begin(); mi != productions.end(); mi++) {
-	const symbol & h = mi->first;
-	const list<vector<symbol> > & l = mi->second;
+	// For each production...
+	for(mi = productions.begin(); mi != productions.end(); mi++) {
+	    const symbol & h = mi->first;
+	    const list<vector<symbol> > & l = mi->second;
 
-	list<vector<symbol> >::const_iterator li;
+	    list<vector<symbol> >::const_iterator li;
 
-	// This handles multiple productions with the same head
-	for(li = l.begin(); li != l.end(); li++) {
-	    const vector<symbol> & v = *li;
-	    unsigned size = v.size();
+	    // This handles multiple productions with the same head
+	    for(li = l.begin(); li != l.end(); li++) {
+		const vector<symbol> & v = *li;
+		unsigned size = v.size();
 
-	    cout << " " << h.type << " -> ";
+		cout << " " << h.type << " -> ";
 
-	    list<symbol>::const_iterator li2;
+		list<symbol>::const_iterator li2;
 
-	    // Iterates through the symbols
-	    for(unsigned i = 0; i < size; i++) {
-		const symbol & s = v[i];
+		// Iterates through the symbols
+		for(unsigned i = 0; i < size; i++) {
+		    const symbol & s = v[i];
 
-		if(terminal(s)) {
-		    cout << s;
-		} else {
-		    cout << s.type;
+		    if(terminal(s)) {
+			cout << s;
+		    } else {
+			cout << s.type;
+		    }
+
+		    if(i < size - 1) {
+			cout << " ";
+		    }
 		}
 
-		if(i < size - 1) {
-		    cout << " ";
-		}
+		cout << endl;
 	    }
-
-	    cout << endl;
 	}
     }
 
@@ -852,7 +838,7 @@ void parser::dump_item(const parser_item & pi) {
 	cout << " .";
     }
 
-    cout << endl;
+    cout << " [" << pi.terminal.type << "]" << endl;
 
     return;
 }

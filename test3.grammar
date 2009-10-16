@@ -1,4 +1,4 @@
-%token
+%token id
 %%
 
 S : L '=' R | R ;

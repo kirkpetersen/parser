@@ -48,6 +48,9 @@ struct parser_item {
     symbol head;
     vector<symbol> symbols;
     unsigned index;
+
+    // TODO testing new closure...
+    symbol terminal;
 };
 
 struct parser_state {
@@ -156,18 +159,20 @@ public:
     void check(const list<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
-    parser_item make_item(const symbol & h, const vector<symbol> & b);
     parser_item make_item(const symbol & h, const vector<symbol> & b,
-			  unsigned st);
+			  const symbol & t);
+    parser_item make_item(const symbol & h, const vector<symbol> & b,
+			  const symbol & t, unsigned st);
 
-    void build_items(const symbol & t, bool tl,
+    void build_items(const symbol & t,
 		     const list<parser_item> & l, list<parser_item> & n);
 
     void shift(const parser_state & ps, const symbol & t);
 
     void reduce(parser_state & ps);
 
-    void closure(parser_state & ps, map<symbol, bool> & added, bool k);
+    void closure(parser_state & ps, map<symbol, bool> & added,
+		 const list<parser_item> & items);
     void closure(parser_state & ps);
 
     bool first(const symbol & h, set<symbol> & rs);
@@ -176,8 +181,6 @@ public:
 
     void follows(const symbol & fs, set<symbol> & rs);
     void follows(const symbol & fs, map<symbol, bool> & v, set<symbol> & rs);
-
-    bool empty_check(const symbol & s);
 
     void check_shift(const string & t,
 		     const list<parser_item> &l1, list<parser_item> & l2);

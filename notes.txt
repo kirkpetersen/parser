@@ -1,7 +1,10 @@
 Parser notes
 
 TODO
-- support LR(1)
+- debug LR(1) support
+  - very close
+- write code to display specific shift/reduce issue
+  - this will allow running without such extensive dumping
 - convert production has into stack of productions
   - this is required for supporting scoped changes to the grammar
 - write simple test for extending syntax on the fly
