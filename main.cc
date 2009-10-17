@@ -8,16 +8,8 @@
 #include <string.h>
 
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <list>
-#include <map>
-#include <queue>
-#include <set>
 
 #include "parser.hh"
-
-using namespace std;
 
 int main(int argc, char * argv[])
 {

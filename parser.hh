@@ -15,17 +15,15 @@
 #include <queue>
 #include <set>
 
-using namespace std;
-
 class symbol {
 public:
-    string type;
-    string value;
+    std::string type;
+    std::string value;
 
     symbol(void) : type(""), value("") { }
     symbol(const char * t) : type(t), value(t) { }
-    symbol(const string & t) : type(t), value(t) { }
-    symbol(const string & t, const string & v) : type(t), value(v) { }
+    symbol(const std::string & t) : type(t), value(t) { }
+    symbol(const std::string & t, const std::string & v) : type(t), value(v) { }
 
     bool empty(void) const {
 	return type.empty();
@@ -47,23 +45,26 @@ public:
     }
 };
 
-ostream & operator<<(ostream & out, const symbol & s);
+std::ostream & operator<<(std::ostream & out, const symbol & s);
 
 struct parser_item {
     symbol head;
-    vector<symbol> symbols;
+    std::vector<symbol> symbols;
     unsigned index;
     symbol terminal;
 };
 
+bool operator<(const parser_item & p1, const parser_item & p2);
+bool operator==(const parser_item & p1, const parser_item & p2);
+
 struct parser_state {
-    list<parser_item> kernel_items;
-    list<parser_item> nonkernel_items;
+    std::list<parser_item> kernel_items;
+    std::list<parser_item> nonkernel_items;
 };
 
 class tree_node {
     symbol head;
-    list<tree_node> nodes;
+    std::list<tree_node> nodes;
     bool terminal;
 
 public:
@@ -77,12 +78,12 @@ public:
     // Assemble a string of everything below this node...
     void dump_below(void) const {
 	if(terminal) {
-	    cout << head.value << " ";
+	    std::cout << head.value << " ";
 	}
 
-	list<tree_node>::const_iterator ti;
+	std::list<tree_node>::const_iterator ti;
 
-	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
+	for(ti = nodes.begin(); ti != nodes.end(); ++ti) {
 	    tree_node tn = *ti;
 
 	    tn.dump_below();
@@ -92,19 +93,19 @@ public:
     }
 
     void dump(unsigned level = 0) const {
-	for(unsigned i = 0; i < level; i++) { cout << ' '; }
+	for(unsigned i = 0; i < level; i++) { std::cout << ' '; }
 
 	dump_below();
 
 	if(terminal) {
-	    cout << " <- " << head << endl;
+	    std::cout << " <- " << head << '\n';
 	} else {
-	    cout << " <- " << head.type << endl;
+	    std::cout << " <- " << head.type << '\n';
 	}
 
-	list<tree_node>::const_iterator ti;
+	std::list<tree_node>::const_iterator ti;
 
-	for(ti = nodes.begin(); ti != nodes.end(); ti++) {
+	for(ti = nodes.begin(); ti != nodes.end(); ++ti) {
 	    tree_node tn = *ti;
 
 	    tn.dump(level + 1);
@@ -117,15 +118,15 @@ public:
 class parser {
     symbol start;
 
-    map<symbol, list<vector<symbol> > > productions;
+    std::map<symbol, std::list<std::vector<symbol> > > productions;
 
-    list<parser_state> state_stack;
-    list<symbol> symbol_stack;
+    std::list<parser_state> state_stack;
+    std::list<symbol> symbol_stack;
 
-    list<tree_node> node_stack;
+    std::list<tree_node> node_stack;
 
-    set<symbol> tokens;
-    set<symbol> literals;
+    std::set<symbol> tokens;
+    std::set<symbol> literals;
 
     symbol token;
 
@@ -136,7 +137,7 @@ public:
 
     void run(void);
 
-    void dump_set(const char * msg, const set<symbol> & rs);
+    void dump_set(const char * msg, const std::set<symbol> & rs);
 
     void dump(const char * msg = NULL);
     void dump_state(const parser_state & ps, unsigned spaces = 0);
@@ -159,34 +160,41 @@ public:
 	}
     }
 
-    void check(const list<parser_item> & l,
+    void check(const std::list<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
-    parser_item make_item(const symbol & h, const vector<symbol> & b,
+    parser_item make_item(const symbol & h, const std::vector<symbol> & b,
 			  const symbol & t);
-    parser_item make_item(const symbol & h, const vector<symbol> & b,
+    parser_item make_item(const symbol & h, const std::vector<symbol> & b,
 			  const symbol & t, unsigned st);
 
     void build_items(const symbol & t,
-		     const list<parser_item> & l, list<parser_item> & n);
+		     const std::list<parser_item> & l,
+		     std::list<parser_item> & n);
 
     void shift(const parser_state & ps, const symbol & t);
 
     void reduce(parser_state & ps);
 
-    unsigned closure(parser_state & ps, map<parser_item, bool> & v,
-		     const list<parser_item> & items);
+    unsigned closure(parser_state & ps,
+		     std::set<parser_item> & v,
+		     std::set<parser_item> & a,
+		     const std::list<parser_item> & items);
     void closure(parser_state & ps);
 
-    bool first(const symbol & h, set<symbol> & rs);
-    bool first(const symbol & h, map<symbol, bool> & v, set<symbol> & rs);
-    bool first(const vector<symbol> & b, unsigned st, set<symbol> & rs);
+    bool first(const symbol & h, std::set<symbol> & rs);
+    bool first(const symbol & h, std::map<symbol, bool> & v,
+	       std::set<symbol> & rs);
+    bool first(const std::vector<symbol> & b, unsigned st,
+	       std::set<symbol> & rs);
 
-    void follows(const symbol & fs, set<symbol> & rs);
-    void follows(const symbol & fs, map<symbol, bool> & v, set<symbol> & rs);
+    void follows(const symbol & fs, std::set<symbol> & rs);
+    void follows(const symbol & fs, std::map<symbol, bool> & v,
+		 std::set<symbol> & rs);
 
-    void check_shift(const string & t,
-		     const list<parser_item> &l1, list<parser_item> & l2);
+    void check_shift(const std::string & t,
+		     const std::list<parser_item> &l1,
+		     std::list<parser_item> & l2);
 
     void next_token(void);
 };

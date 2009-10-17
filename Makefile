@@ -1,5 +1,6 @@
 # parser makefile
 
+#CPPFLAGS = -Wall -Werror -g -std=c++0x $(OPTFLAGS)
 CPPFLAGS = -Wall -Werror -g $(OPTFLAGS)
 LDFLAGS = $(OPTFLAGS)
 

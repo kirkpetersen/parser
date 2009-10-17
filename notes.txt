@@ -11,3 +11,6 @@ TODO
   - this is required for supporting scoped changes to the grammar
 - write simple test for extending syntax on the fly
   - introduce custom code to trigger
+
+- experiment with grammars for next generation language
+  - typing like ML
