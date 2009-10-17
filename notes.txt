@@ -5,6 +5,8 @@ TODO
   - very close
 - begin thinking about efficiency concerns
   - closure is starting to get ugly
+  - with the c2 grammar, gprof shows 67% in operator<(parser_item)
+  - hash_map or unordered_map?  or just new data structure?
 - write code to display specific shift/reduce issue
   - this will allow running without such extensive dumping
 - convert production has into stack of productions

@@ -243,6 +243,11 @@ void parser::check(const std::list<parser_item> & l,
 	    }
 
 	    if(token == pi.symbols[pi.index]) {
+		if(verbose > 1) {
+		    std::cout << "check: shift ";
+		    dump_item(pi);
+		}
+
 		cs++;
 	    }
 	    
@@ -251,10 +256,20 @@ void parser::check(const std::list<parser_item> & l,
 
 	    if(pi.head == start) {
 		if(token == symbol("$")) {
+		    if(verbose > 1) {
+			std::cout << "check: accept ";
+			dump_item(pi);
+		    }
+
 		    ca++;
 		}
 	    } else {
 		if(token == pi.terminal) {
+		    if(verbose > 1) {
+			std::cout << "check: reduce ";
+			dump_item(pi);
+		    }
+
 		    cr++;
 		}
 	    }
@@ -529,9 +544,9 @@ unsigned parser::closure(parser_state & ps,
 
     // for ( each item [A -> /a/ . B /B/, a] in I )
     for(ii = items.begin(); ii != items.end(); ++ii) {
-	parser_item pi = *ii;
+	const parser_item & pi = *ii;
 
-	if(verbose > 2) {
+	if(verbose > 3) {
 	    std::cout << "closure trying item: ";
 	    dump_item(pi);
 	}
@@ -582,9 +597,9 @@ unsigned parser::closure(parser_state & ps,
 		}
 	    }
 
-	    std::cout << ")\n";
+	    std::cout << ")";
 
-	    dump_set("closure set... ", rs);
+	    dump_set(": ", rs);
 	}
 
 	std::list<std::vector<symbol> >::const_iterator li;
@@ -626,6 +641,21 @@ unsigned parser::closure(parser_state & ps,
 
 void parser::closure(parser_state & ps)
 {
+    // TODO
+    // - all items in state start marked "unclosed"?
+    // - mark "closed"?
+    // - still need a way of checking to see if the item is already in
+    //   the list of k/nk items
+    //
+    // - maintain a map of items
+    // - first add all kernel items, set to false
+    // - call closure
+    // - new items are added to nonkernel_item list and to map, set to false
+    // - each time closure is called, map is iterated over
+    // - any false items are processed
+    // - any time a new item is created, don't add if it is in the map,
+    //   set to true or false
+
     std::set<parser_item> visited;
     std::set<parser_item> added;
 
@@ -655,8 +685,13 @@ void parser::load(const char * filename)
 
 	switch(state) {
 	case 0: // start state
-	    if(t == "%token") {
+	    if(t == "%%") {
+		done = 1;
+		break;
+	    } else if(t == "%token") {
 		state = 1;
+	    } else if(t == "%start") {
+		state = 2;
 	    } else {
 		std::cerr << "tokenizer error\n";
 		return;
@@ -668,10 +703,30 @@ void parser::load(const char * filename)
 	    if(t == "%%") {
 		done = 1;
 		break;
+	    } else if(t == "%token") {
+		// simply skip this item and stay in this state
+	    } else if(t == "%start") {
+		state = 2;
 	    } else {
 		tokens.insert(t);
 	    }
 
+	    break;
+
+	case 2:
+	    // Make sure we don't try to create the start state later
+	    p++;
+
+	    // Now create the start state
+	    {
+		std::vector<symbol> body2;
+
+		body2.push_back(t);
+
+		productions[start].push_back(body2);
+	    }
+
+	    state = 0;
 	    break;
 	}
     }
@@ -943,6 +998,9 @@ void parser::next_token(void)
 	    } else if(isalpha(c)) {
 		token.value += c;
 		state = 1;
+	    } else if(c == '"') {
+		// don't capture the opening quote
+		state = 5;
 	    } else if(c == '\'') {
 		// don't capture the opening quote
 		state = 4;
@@ -1004,6 +1062,16 @@ void parser::next_token(void)
 	    if(c == '\'') {
 		// don't capture the closing quote
 		token.type = "literal";
+		return;
+	    } else {
+		token.value += c;
+	    }
+	    break;
+
+	case 5:
+	    if(c == '"') {
+		// don't capture the closing quote
+		token.type = "string";
 		return;
 	    } else {
 		token.value += c;

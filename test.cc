@@ -23,6 +23,8 @@ int run_test(const char * name);
 
 int test_empty(void);
 int test_c(void);
+int test_lr1(void);
+int test_map(void);
 
 struct test {
     const char * name;
@@ -30,6 +32,8 @@ struct test {
 } tests[] = {
     { "empty", test_empty },
     { "c", test_c },
+    { "lr1", test_lr1 },
+    { "map", test_map },
     { NULL, NULL }
 };
 
@@ -176,7 +180,7 @@ int test_c(void)
     return 0;
 }
 
-int test4(void)
+int test_lr1(void)
 {
     parser p;
 
@@ -197,6 +201,19 @@ int test4(void)
     rs.clear();
 
     p.dump("shift/reduce dump");
+
+    return 0;
+}
+
+int test_map(void)
+{
+    map<const char *, bool> m;
+
+    assert(m.count("foo") == 0);
+
+    m["foo"] = false;
+
+    assert(m.count("foo") > 0);
 
     return 0;
 }
