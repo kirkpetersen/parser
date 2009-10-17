@@ -36,6 +36,11 @@ public:
 	return result;
     }
 
+    bool operator!=(const symbol & s) const {
+	bool result = type != s.type;
+	return result;
+    }
+
     bool operator<(const symbol & s) const {
 	bool result = type < s.type;
 	return result;
@@ -48,8 +53,6 @@ struct parser_item {
     symbol head;
     vector<symbol> symbols;
     unsigned index;
-
-    // TODO testing new closure...
     symbol terminal;
 };
 
@@ -136,8 +139,8 @@ public:
     void dump_set(const char * msg, const set<symbol> & rs);
 
     void dump(const char * msg = NULL);
-    void dump_state(const parser_state & ps);
-    void dump_item(const parser_item & pi);
+    void dump_state(const parser_state & ps, unsigned spaces = 0);
+    void dump_item(const parser_item & pi, unsigned spaces = 0);
 
     void dump_tree(void) {
 	if(!node_stack.empty()) {
@@ -171,8 +174,8 @@ public:
 
     void reduce(parser_state & ps);
 
-    void closure(parser_state & ps, map<symbol, bool> & added,
-		 const list<parser_item> & items);
+    unsigned closure(parser_state & ps, map<parser_item, bool> & v,
+		     const list<parser_item> & items);
     void closure(parser_state & ps);
 
     bool first(const symbol & h, set<symbol> & rs);

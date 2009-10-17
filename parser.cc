@@ -30,16 +30,43 @@ ostream & operator<<(ostream & out, const symbol & s)
     return out;
 }
 
+bool operator<(const parser_item & p1, const parser_item & p2)
+{
+    if(p1.head == p2.head && p1.symbols == p2.symbols
+       && p1.index == p2.index && p1.terminal < p2.terminal) {
+	return true;
+    } else if(p1.head == p2.head && p1.symbols == p2.symbols
+	      && p1.index < p2.index) {
+	return true;
+    } else if(p1.head == p2.head && p1.symbols < p2.symbols) {
+	return true;
+    } else if(p1.head < p2.head) {
+	return true;
+    }
+
+    return false;
+}
+
 void parser::reduce(parser_state & ps)
 {
     list<parser_item>::const_iterator ki;
 
     // Only kernel items can contain possible reductions
     for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ki++) {
-	const parser_item & pi = *ki;
+	parser_item pi = *ki;
+
+	if(verbose > 2) {
+	    cout << "trying to reduce by: ";
+	    dump_item(pi);
+	}
 
 	// Skip any item without the dot at the end
 	if(pi.index != pi.symbols.size()) {
+	    continue;
+	}
+
+	// Skip any item that doesn't match the token
+	if(token != pi.terminal) {
 	    continue;
 	}
 
@@ -47,6 +74,18 @@ void parser::reduce(parser_state & ps)
 	unsigned n = pi.symbols.size();
 
 	tree_node tn(head, false);
+
+	if(verbose > 0) {
+	    cout << "reduce: " << head.type << " -> ";
+
+	    tn.dump_below();
+
+	    cout << endl;
+
+	    cout << "reduce item: ";
+
+	    dump_item(pi);
+	}
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
@@ -61,14 +100,6 @@ void parser::reduce(parser_state & ps)
 
 	    // Set the current state to the previous
 	    ps = state_stack.back();
-	}
-
-	if(verbose > 0) {
-	    cout << "reduce: " << head.type << " -> ";
-
-	    tn.dump_below();
-
-	    cout << endl;
 	}
 
 	symbol_stack.push_back(head);
@@ -88,6 +119,10 @@ void parser::reduce(parser_state & ps)
 	if(ns.kernel_items.empty()) {
 	    cout << "no match for " << head << endl;
 	    return;
+	}
+
+	if(verbose > 1) {
+	    cout << "closure post reduce" << endl;
 	}
 
 	closure(ns);
@@ -119,6 +154,10 @@ void parser::run(void)
 	ps.kernel_items.push_back(pi);
     }
 
+    if(verbose > 1) {
+	cout << "closure for initial state" << endl;
+    }
+
     closure(ps);
 
     state_stack.push_back(ps);
@@ -138,7 +177,7 @@ void parser::run(void)
 	    cout.flush();
 	}
 
-	if(verbose > 1) {
+	if(verbose > 2) {
 	    dump("verbose dump (every loop)");
 	}
 
@@ -148,7 +187,7 @@ void parser::run(void)
 	check(ps.kernel_items, cs, cr, ca);
 	check(ps.nonkernel_items, cs, cr, ca);
 
-	if(verbose > 1) {
+	if(verbose > 0) {
 	    cout << "shifts: " << cs << ", "
 		 << "reduces: " << cr << ", "
 		 << "accepts: " << ca << endl;
@@ -195,29 +234,29 @@ void parser::check(const list<parser_item> & l,
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); li++) {
-	const parser_item & i = *li;
+	parser_item pi = *li;
 
-	if(i.index < i.symbols.size()) {
+	if(pi.index < pi.symbols.size()) {
 	    // Not at the end of the item, so we should check for
 	    // shift conditions
 
-	    if(!terminal(i.symbols[i.index])) {
+	    if(!terminal(pi.symbols[pi.index])) {
 		continue;
 	    }
 
-	    if(token == i.symbols[i.index]) {
+	    if(token == pi.symbols[pi.index]) {
 		cs++;
 	    }
 	    
 	} else {
 	    // At the end of this item, check for valid reduce or accept
 
-	    if(i.head == start) {
+	    if(pi.head == start) {
 		if(token == symbol("$")) {
 		    ca++;
 		}
 	    } else {
-		if(token == i.terminal) {
+		if(token == pi.terminal) {
 		    cr++;
 		}
 	    }
@@ -269,20 +308,25 @@ void parser::build_items(const symbol & t,
 
     // For each item from the previous state...
     for(li = l.begin(); li != l.end(); li++) {
-	const parser_item & i = *li;
+	parser_item pi = *li;
 
-	if(i.index >= i.symbols.size()) {
+	if(pi.index >= pi.symbols.size()) {
 	    continue;
 	}
 
-	symbol s = i.symbols[i.index];
+	symbol s = pi.symbols[pi.index];
 
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
-	    parser_item ni = i;
+	    parser_item ni = pi;
 
 	    ni.index++;
+
+	    if(verbose > 1) {
+		cout << "building new item: ";
+		dump_item(ni);
+	    }
 
 	    // Add the new item to the new state
 	    n.push_back(ni);
@@ -307,6 +351,10 @@ void parser::shift(const parser_state & ps, const symbol & t)
     if(ns.kernel_items.empty()) {
 	cout << "no match for token " << t << endl;
 	return;
+    }
+
+    if(verbose > 1) {
+	cout << "closure post shift" << endl;
     }
 
     closure(ns);
@@ -468,91 +516,114 @@ void parser::follows(const symbol & fs, set<symbol> & rs)
     return;
 }
 
-void parser::closure(parser_state & ps, map<symbol, bool> & added,
-		     const list<parser_item> & items)
+unsigned parser::closure(parser_state & ps, map<parser_item, bool> & v,
+			 const list<parser_item> & items)
 {
-    unsigned x;
+    unsigned x = 0;
 
-    do {
-	x = 0;
+    list<parser_item>::const_iterator ii;
 
-	list<parser_item>::const_iterator ii;
+    // for ( each item [A -> /a/ . B /B/, a] in I )
+    for(ii = items.begin(); ii != items.end(); ii++) {
+	parser_item pi = *ii;
 
-	// for ( each item [A -> /a/ . B /B/, a] in I )
-	for(ii = items.begin(); ii != items.end(); ii++) {
-	    const parser_item & i = *ii;
+	if(verbose > 2) {
+	    cout << "closure trying item: ";
+	    dump_item(pi);
+	}
 
-	    // If this is the end of the item, nothing to do
-	    if(i.index >= i.symbols.size()) {
+	// If this is the end of the item, nothing to do
+	if(pi.index >= pi.symbols.size()) {
+	    continue;
+	}
+
+	symbol s = pi.symbols[pi.index];
+
+	// No need to close on terminal symbols
+	if(terminal(s)) {
+	    continue;
+	}
+
+	// Sanity check
+	if(productions.count(s) == 0) {
+	    cerr << "ERROR?" << endl;
+	    continue;
+	}
+
+	// Create temporary vector for [/B/, a]
+	vector<symbol> beta(pi.symbols);
+
+	beta.push_back(pi.terminal);
+
+	set<symbol> rs;
+
+	first(beta, pi.index + 1, rs);
+
+	if(verbose > 2) {
+	    cout << "FIRST(";
+
+	    for(unsigned i = pi.index + 1; i < beta.size(); i++) {
+		cout << beta[i];
+
+		if(i < beta.size() - 1) {
+		    cout << " ";
+		}
+	    }
+
+	    cout << ")" << endl;
+
+	    dump_set("closure set... ", rs);
+	}
+
+	list<vector<symbol> >::const_iterator li;
+
+	// for ( each production B -> y in G' )
+	for(li = productions[s].begin();
+	    li != productions[s].end(); li++) {
+	    const vector<symbol> & b = *li;
+
+	    if(b.empty()) {
 		continue;
 	    }
 
-	    symbol s = i.symbols[i.index];
+	    set<symbol>::const_iterator si;
 
-	    // No need to close on terminal symbols
-	    if(terminal(s)) {
-		continue;
-	    }
+	    // for ( each terminal b in FIRST(/B/ a) )
+	    for(si = rs.begin(); si != rs.end(); si++) {
+		parser_item pi2 = make_item(s, b, *si);
 
-	    // No need to continue if we've already added this symbol
-	    if(added[s]) {
-		continue;
-	    }
-
-	    added[s] = true;
-
-	    // Lookup the symbol and create a new nonkernel item for
-	    // each of the bodies
-
-	    if(productions.count(s) == 0) {
-		continue;
-	    }
-
-	    list<vector<symbol> >::const_iterator li;
-
-	    // for ( each production B -> y in G' )
-	    for(li = productions[s].begin();
-		li != productions[s].end(); li++) {
-		const vector<symbol> & b = *li;
-
-		if(b.empty()) {
+		if(v.count(pi2) > 0) {
 		    continue;
 		}
 
-		// Create temporary vector for [/B/, a]
-		vector<symbol> beta(i.symbols);
-
-		beta.push_back(i.terminal);
-
-		set<symbol> rs;
-
-		first(beta, i.index + 1, rs);
-
-		set<symbol>::const_iterator si;
-
-		// for ( each terminal b in FIRST(/B/ a) )
-		for(si = rs.begin(); si != rs.end(); si++) {
-		    parser_item pi = make_item(s, b, *si);
-
-		    // add [B -> . y, b] to set I
-		    ps.nonkernel_items.push_back(pi);
-		    x++;
+		if(verbose > 2) {
+		    cout << "closure creating: ";
+		    dump_item(pi2);
 		}
+
+		v[pi2] = true;
+
+		// add [B -> . y, b] to set I
+		ps.nonkernel_items.push_back(pi2);
+		x++;
 	    }
 	}
+    }
 
-    } while(x > 0);
-
-    return;
+    return x;
 }
 
 void parser::closure(parser_state & ps)
 {
-    map<symbol, bool> added;
-    list<parser_item>::const_iterator ki;
+    map<parser_item, bool> added;
 
     closure(ps, added, ps.kernel_items);
-    closure(ps, added, ps.nonkernel_items);
+
+    for(;;) {
+	if(closure(ps, added, ps.nonkernel_items) == 0) {
+	    break;
+	}
+    }
 
     return;
 }
@@ -693,7 +764,7 @@ void parser::dump(const char * msg)
 	cout << "[" << msg << "]" << endl;
     }
 
-    if(verbose > 2) {
+    if(verbose > 3) {
 	dump_set("tokens: ", tokens);
 	dump_set("literals: ", literals);
 
@@ -759,7 +830,7 @@ void parser::dump(const char * msg)
 
 	cout << "  state " << sn++ << endl;
 
-	dump_state(ps);
+	dump_state(ps, 3);
     }
 
     cout << " parse tree:" << endl;
@@ -773,30 +844,36 @@ void parser::dump(const char * msg)
     return;
 }
 
-void parser::dump_state(const parser_state & ps) {
+void parser::dump_state(const parser_state & ps, unsigned spaces) {
     list<parser_item>::const_iterator li;
 
-    cout << "  kernel items:" << endl;
+    for(unsigned i = 0; i < spaces; i++) { cout << ' '; }
+
+    cout << "kernel items:" << endl;
 
     for(li = ps.kernel_items.begin(); li != ps.kernel_items.end(); li++) {
 	parser_item pi = *li;
 
-	dump_item(pi);
+	dump_item(pi, spaces + 1);
     }
 
-    cout << "  nonkernel items:" << endl;
+    for(unsigned i = 0; i < spaces; i++) { cout << ' '; }
+
+    cout << "nonkernel items:" << endl;
 
     for(li = ps.nonkernel_items.begin(); li != ps.nonkernel_items.end(); li++) {
 	parser_item pi = *li;
 
-	dump_item(pi);
+	dump_item(pi, spaces + 1);
     }
 
     return;
 }
 
-void parser::dump_item(const parser_item & pi) {
-    cout << "   " << pi.head.type << " -> ";
+void parser::dump_item(const parser_item & pi, unsigned spaces) {
+    for(unsigned i = 0; i < spaces; i++) { cout << ' '; }
+
+    cout << pi.head.type << " -> ";
 
     unsigned size = pi.symbols.size();
 

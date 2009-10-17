@@ -3,4 +3,5 @@
 
 STMT : 'if' E 'then' E 'else' E ;
 
-E : id | num | E '+' E | E '-' E | E '*' E | E '/' E ;
+E : E '+' E | num | id ;
+
