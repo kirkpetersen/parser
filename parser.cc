@@ -121,7 +121,7 @@ void parser::reduce(parser_state & ps)
 	    return;
 	}
 
-	if(verbose > 1) {
+	if(verbose > 2) {
 	    cout << "closure post reduce" << endl;
 	}
 
@@ -154,7 +154,7 @@ void parser::run(void)
 	ps.kernel_items.push_back(pi);
     }
 
-    if(verbose > 1) {
+    if(verbose > 2) {
 	cout << "closure for initial state" << endl;
     }
 
@@ -353,7 +353,7 @@ void parser::shift(const parser_state & ps, const symbol & t)
 	return;
     }
 
-    if(verbose > 1) {
+    if(verbose > 2) {
 	cout << "closure post shift" << endl;
     }
 
@@ -557,6 +557,7 @@ unsigned parser::closure(parser_state & ps, map<parser_item, bool> & v,
 
 	set<symbol> rs;
 
+	// FIRST(/B/ a)
 	first(beta, pi.index + 1, rs);
 
 	if(verbose > 2) {
@@ -833,12 +834,14 @@ void parser::dump(const char * msg)
 	dump_state(ps, 3);
     }
 
-    cout << " parse tree:" << endl;
+    if(verbose > 3) {
+	cout << " parse tree:" << endl;
 
-    if(node_stack.size() > 0) {
-	const tree_node & tn = node_stack.back();
+	if(node_stack.size() > 0) {
+	    const tree_node & tn = node_stack.back();
 
-	tn.dump();
+	    tn.dump();
+	}
     }
 
     return;
