@@ -165,8 +165,6 @@ public:
 
     parser_item make_item(const symbol & h, const std::vector<symbol> & b,
 			  const symbol & t);
-    parser_item make_item(const symbol & h, const std::vector<symbol> & b,
-			  const symbol & t, unsigned st);
 
     void build_items(const symbol & t,
 		     const std::list<parser_item> & l,

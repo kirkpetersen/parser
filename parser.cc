@@ -292,27 +292,6 @@ parser_item parser::make_item(const symbol & h, const std::vector<symbol> & b,
     return pi;
 }
 
-parser_item parser::make_item(const symbol & h, const std::vector<symbol> & b,
-			      const symbol & t, unsigned st)
-{
-    parser_item pi;
-
-    pi.head = h;
-    pi.index = 0;
-
-    unsigned size = b.size() - st;
-
-    pi.symbols.resize(size);
-
-    for(unsigned i = st; i < size; i++) {
-	pi.symbols[i] = b[i];
-    }
-
-    pi.terminal = t;
-
-    return pi;
-}
-
 void parser::build_items(const symbol & t,
 			 const std::list<parser_item> & l,
 			 std::list<parser_item> & n)
