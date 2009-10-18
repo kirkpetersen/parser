@@ -640,21 +640,6 @@ unsigned parser::closure(parser_state & ps,
 
 void parser::closure(parser_state & ps)
 {
-    // TODO
-    // - all items in state start marked "unclosed"?
-    // - mark "closed"?
-    // - still need a way of checking to see if the item is already in
-    //   the list of k/nk items
-    //
-    // - maintain a map of items
-    // - first add all kernel items, set to false
-    // - call closure
-    // - new items are added to nonkernel_item list and to map, set to false
-    // - each time closure is called, map is iterated over
-    // - any false items are processed
-    // - any time a new item is created, don't add if it is in the map,
-    //   set to true or false
-
     std::set<parser_item> visited;
     std::set<parser_item> added;
 
