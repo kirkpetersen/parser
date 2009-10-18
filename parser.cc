@@ -287,7 +287,6 @@ parser_item parser::make_item(const symbol & h, const std::vector<symbol> & b,
     pi.head = h;
     pi.symbols = b;
     pi.index = 0;
-
     pi.terminal = t;
 
     return pi;
@@ -1007,7 +1006,7 @@ void parser::next_token(void)
 	    } else if(c == ';' || c == ':' || c == '{' || c == '}'
 		      || c == '(' || c == ')' || c == '?'
 		      || c == '+' || c == '-' || c == '*' || c == '/'
-		      || c == '=') {
+		      || c == '=' || c == '[' || c == ']') {
 		// single character literal
 		token.type = c;
 		token.value = c;
