@@ -45,6 +45,354 @@ bool operator<(const parser_item & p1, const parser_item & p2)
     return false;
 }
 
+void parser::bootstrap()
+{
+    tokens.insert(symbol("id"));
+    tokens.insert(symbol("literal"));
+
+    literals.insert(symbol("%%"));
+    literals.insert(symbol("%token"));
+    literals.insert(symbol(":"));
+    literals.insert(symbol(";"));
+    literals.insert(symbol("|"));
+
+    std::vector<symbol> body;
+
+    // Start production
+    body.push_back(symbol("tokenizer_and_grammar"));
+    productions[symbol(start)].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("tokenizer"));
+    body.push_back(symbol("%%"));
+    body.push_back(symbol("grammar"));
+    productions[symbol("tokenizer_and_grammar")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("tokenizer"));
+    body.push_back(symbol("%%"));
+    body.push_back(symbol("grammar"));
+    productions[symbol("tokenizer_and_grammar")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("token_line_list"));
+    productions[symbol("tokenizer")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("token_line"));
+    productions[symbol("token_line_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("token_line"));
+    body.push_back(symbol("token_line_list"));
+    productions[symbol("token_line_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("%token"));
+    body.push_back(symbol("token_list"));
+    productions[symbol("token_line")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("%start"));
+    body.push_back(symbol("id"));
+    productions[symbol("token_line")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("id"));
+    productions[symbol("token_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("id"));
+    body.push_back(symbol("token_list"));
+    productions[symbol("token_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("production_list"));
+    productions[symbol("grammar")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("production"));
+    productions[symbol("production_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("production"));
+    body.push_back(symbol("production_list"));
+    productions[symbol("production_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("id"));
+    body.push_back(symbol(":"));
+    body.push_back(symbol("body_list"));
+    body.push_back(symbol(";"));
+    productions[symbol("production")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("body"));
+    productions[symbol("body_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("body"));
+    body.push_back(symbol("|"));
+    body.push_back(symbol("body_list"));
+    productions[symbol("body_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("symbol_list"));
+    productions[symbol("body")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("symbol"));
+    productions[symbol("symbol_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("symbol"));
+    body.push_back(symbol("symbol_list"));
+    productions[symbol("symbol_list")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("id"));
+    productions[symbol("symbol")].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("literal"));
+    productions[symbol("symbol")].push_back(body);
+
+    return;
+}
+
+bool parser::find_node(const tree_node & tn, const symbol & s,
+		       tree_node & t) const {
+    std::list<tree_node>::const_iterator ti;
+
+    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
+	const tree_node & tn2 = *ti;
+
+	if(s == tn2.head) {
+	    t = tn2;
+	    return true;
+	}
+    }
+
+    return false;
+}
+
+void parser::load_symbol(const tree_node & tn, std::vector<symbol> & b)
+{
+    tree_node i, l;
+
+    if(find_node(tn, "id", i)) {
+	b.push_back(symbol(i.head.value));
+    } else if(find_node(tn, "literal", l)) {
+	literals.insert(symbol(l.head.value));
+	b.push_back(symbol(l.head.value));
+    }
+
+    return;
+}
+
+void parser::load_symbol_list(const tree_node & tn, std::vector<symbol> & b)
+{
+    tree_node s, sl;
+
+    if(find_node(tn, "symbol", s)) {
+	load_symbol(s, b);
+    }
+
+    if(find_node(tn, "symbol_list", sl)) {
+	load_symbol_list(sl, b);
+    }
+
+    return;
+}
+
+void parser::load_body(const tree_node & tn, std::vector<symbol> & b)
+{
+    tree_node sl;
+
+    if(find_node(tn, "symbol_list", sl)) {
+	load_symbol_list(sl, b);
+    }
+
+    return;
+}
+
+void parser::load_body_list(const tree_node & tn,
+			    std::list<std::vector<symbol> > & p)
+{
+    tree_node b, bl;
+
+    if(find_node(tn, "body", b)) {
+	std::vector<symbol> body;
+
+	load_body(b, body);
+
+	p.push_back(body);
+    }
+
+    if(find_node(tn, "body_list", bl)) {
+	load_body_list(bl, p);
+    }
+
+    return;
+}
+
+void parser::load_production(const tree_node & tn)
+{
+    tree_node id, bl;
+
+    if(find_node(tn, "id", id)) {
+	if(find_node(tn, "body_list", bl)) {
+	    load_body_list(bl, productions[id.head.value]);
+	}
+    }
+
+    return;
+}
+
+void parser::load_production_list(const tree_node & tn)
+{
+    tree_node p, pl;
+
+    if(find_node(tn, "production", p)) {
+	load_production(p);
+    }
+
+    if(find_node(tn, "production_list", pl)) {
+	load_production_list(pl);
+    }
+
+    return;
+}
+
+void parser::load_token_list(const tree_node & tn)
+{
+    tree_node id, tl;
+
+    if(find_node(tn, "id", id)) {
+	tokens.insert(symbol(id.head.value));
+    }
+
+    if(find_node(tn, "token_list", tl)) {
+	load_token_list(tl);
+    }
+
+    return;
+}
+
+void parser::load_token_line(const tree_node & tn)
+{
+    tree_node t, tl, s, ss;
+
+    if(find_node(tn, "%token", t)) {
+	if(find_node(tn, "token_list", tl)) {
+	    load_token_list(tl);
+	}
+    }
+
+    if(find_node(tn, "%start", s)) {
+	if(find_node(tn, "id", ss)) {
+	    std::vector<symbol> body;
+
+	    body.push_back(ss.head.value);
+
+	    productions[start].push_back(body);
+	}
+    }
+
+    return;
+}
+
+void parser::load_token_line_list(const tree_node & tn)
+{
+    tree_node tl, tll;
+
+    if(find_node(tn, "token_line", tl)) {
+	load_token_line(tl);
+    }
+
+    if(find_node(tn, "token_line_list", tll)) {
+	load_token_line_list(tll);
+    }
+
+    return;
+}
+
+void parser::load_tokenizer(const tree_node & tn)
+{
+    tree_node tll;
+
+    if(find_node(tn, "token_line_list", tll)) {
+	load_token_line_list(tn);
+    }
+
+    return;
+}
+
+void parser::load_grammar(const tree_node & tn)
+{
+    load_production_list(tn);
+
+    return;
+}
+
+void parser::load(const char * filename)
+{
+    parser bp;
+
+    // This parser is used to load the user's grammar file
+    bp.bootstrap();
+
+    std::ifstream fs(filename, std::fstream::in);
+
+    bp.run(fs);
+
+    tree_node tn = bp.tree();
+
+#if 0
+    // TODO fix this to work...
+    if(!find_node(tn, "tokenizer_and_grammar", tg)) {
+	std::cerr << "invalid grammar\n";
+	return;
+    }
+#endif
+
+    std::list<tree_node>::const_iterator ti;
+
+    tree_node t, g;
+
+    if(find_node(tn, "tokenizer", t)) {
+	load_tokenizer(t);
+    }
+
+    if(find_node(tn, "grammar", g)) {
+	load_grammar(g);
+    }
+
+    fs.close();
+
+    return;
+}
+
 void parser::reduce(parser_state & ps)
 {
     std::list<parser_item>::const_iterator ki;
@@ -71,12 +419,14 @@ void parser::reduce(parser_state & ps)
 	symbol head = pi.head;
 	unsigned n = pi.symbols.size();
 
-	tree_node tn(head, false);
+	tree_node pn;
+
+	pn.head = head;
 
 	if(verbose > 0) {
 	    std::cout << "reduce: " << head.type << " -> ";
 
-	    tn.dump_below();
+	    dump_tree_below(pn);
 
 	    std::cout << '\n';
 
@@ -88,7 +438,8 @@ void parser::reduce(parser_state & ps)
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
 	    // Add to the tree
-	    tn.insert(node_stack.back());
+	    pn.nodes.push_front(node_stack.back());
+
 	    node_stack.pop_back();
 
 	    symbol_stack.pop_back();
@@ -103,7 +454,7 @@ void parser::reduce(parser_state & ps)
 	symbol_stack.push_back(head);
 
 	// Push new tree node
-	node_stack.push_back(tn);
+	node_stack.push_back(pn);
 
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
@@ -133,7 +484,7 @@ void parser::reduce(parser_state & ps)
     return;
 }
 
-void parser::run(void)
+void parser::run(std::istream & tin)
 {
     std::list<std::vector<symbol> > sp = productions[start];
 
@@ -163,7 +514,7 @@ void parser::run(void)
     unsigned loop = 0;
 
     // Get the first token
-    next_token();
+    next_token(tin);
 
     for(;;) {
 	if(verbose > 0) {
@@ -202,7 +553,6 @@ void parser::run(void)
 	}
 
 	if(ca > 0) {
-	    std::cout << "ACCEPT!\n";
 	    break;
 	} else if(cs > 0) {
 	    shift(ps, token);
@@ -210,7 +560,7 @@ void parser::run(void)
 	    // Set the current state to the one shift() created
 	    ps = state_stack.back();
 
-	    next_token();
+	    next_token(tin);
 	} else if(cr > 0) {
 	    reduce(ps);
 
@@ -356,7 +706,13 @@ void parser::shift(const parser_state & ps, const symbol & t)
     state_stack.push_back(ns);
 
     // New node for this symbol
-    node_stack.push_back(tree_node(token, true));
+    {
+	tree_node tn;
+
+	tn.head = token;
+
+	node_stack.push_back(tn);
+    }
 
     return;
 }
@@ -633,144 +989,6 @@ void parser::closure(parser_state & ps)
     return;
 }
 
-void parser::load(const char * filename)
-{
-    int p = 0, done = 0, state = 0;
-
-    std::vector<symbol> body;
-
-    std::fstream fs(filename, std::fstream::in);
-
-    while(!done) {
-	std::string t;
-
-	fs >> t;
-
-	switch(state) {
-	case 0: // start state
-	    if(t == "%%") {
-		done = 1;
-		break;
-	    } else if(t == "%token") {
-		state = 1;
-	    } else if(t == "%start") {
-		state = 2;
-	    } else {
-		std::cerr << "tokenizer error\n";
-		return;
-	    }
-
-	    break;
-
-	case 1: // token names
-	    if(t == "%%") {
-		done = 1;
-		break;
-	    } else if(t == "%token") {
-		// simply skip this item and stay in this state
-	    } else if(t == "%start") {
-		state = 2;
-	    } else {
-		tokens.insert(t);
-	    }
-
-	    break;
-
-	case 2:
-	    // Make sure we don't try to create the start state later
-	    p++;
-
-	    // Now create the start state
-	    {
-		std::vector<symbol> body2;
-
-		body2.push_back(t);
-
-		productions[start].push_back(body2);
-	    }
-
-	    state = 0;
-	    break;
-	}
-    }
-
-    symbol head;
-
-    state = 0;
-
-    for(;;) {
-	std::string t;
-
-	fs >> t;
-
-	if(fs.eof()) {
-	    break;
-	}
-
-	switch(state) {
-	case 0: // start state
-	    // always the head
-	    head = symbol(t);
-	    state = 1;
-
-	    break;
-
-	case 1: // expect a colon
-	    if(t == ":") {
-		state = 2;
-	    } else {
-		std::cerr << "error reading grammar: " << t << '\n';
-	    }
-
-	    break;
-
-	case 2:
-	    if(t == "|") {
-		// end of this body, put into productions
-		productions[head].push_back(body);
-		body.clear();
-
-	    } else if(t == ";") {
-		// end of this production
-		productions[head].push_back(body);
-		body.clear();
-		state = 0;
-
-		// If this is the first state...
-		if(p++ == 0) {
-		    std::vector<symbol> body2;
-
-		    body2.push_back(head);
-
-		    productions[start].push_back(body2);
-		}
-	    } else {
-		// determine if the symbol is nonterminal,
-		// terminal from the token list, or a literal (';')
-
-		// fill in terminal afterwards, based on lhs check?
-
-		// add to the current body
-		if(t[0] == '\'' && t[t.size() - 1] == '\'') {
-		    std::string t2 = t.substr(1, t.size() - 2);
-
-		    literals.insert(symbol(t2));
-
-		    body.push_back(symbol(t2));
-		} else {
-		    body.push_back(symbol(t));
-		}
-	    }
-
-	    break;
-	}
-    }
-
-    fs.close();
-
-    return;
-}
-
 void parser::dump_set(const char * msg, const std::set<symbol> & rs)
 {
     std::cout << msg;
@@ -867,9 +1085,7 @@ void parser::dump(const char * msg)
 	std::cout << " parse tree:\n";
 
 	if(node_stack.size() > 0) {
-	    const tree_node & tn = node_stack.back();
-
-	    tn.dump();
+	    dump_tree(node_stack.back());
 	}
     }
 
@@ -935,7 +1151,52 @@ void parser::dump_item(const parser_item & pi, unsigned spaces) {
     return;
 }
 
-void parser::next_token(void)
+void parser::dump_tree(void) const
+{
+    if(!node_stack.empty()) {
+	dump_tree(node_stack.back());
+    }
+
+    return;
+}
+
+void parser::dump_tree_below(const tree_node & tn) const
+{
+    if(terminal(tn.head)) {
+	std::cout << tn.head.value << " ";
+    }
+
+    std::list<tree_node>::const_iterator ti;
+
+    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
+	dump_tree_below(*ti);
+    }
+
+    return;
+}
+
+void parser::dump_tree(const tree_node & tn, unsigned level) const
+{
+    for(unsigned i = 0; i < level; i++) { std::cout << ' '; }
+
+    dump_tree_below(tn);
+
+    if(terminal(tn.head)) {
+	std::cout << " <- " << tn.head << '\n';
+    } else {
+	std::cout << " <- " << tn.head.type << '\n';
+    }
+
+    std::list<tree_node>::const_iterator ti;
+
+    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
+	dump_tree(*ti, level + 1);
+    }
+
+    return;
+}
+
+void parser::next_token(std::istream & tin)
 {
     int state = 0;
     char c;
@@ -943,9 +1204,9 @@ void parser::next_token(void)
     token.value = "";
 
     for(;;) {
-	c = std::cin.get();
+	c = tin.get();
 
-	if(std::cin.eof()) {
+	if(tin.eof()) {
 	    token.value = "$";
 	    token.type = "$";
 	    return;
@@ -962,7 +1223,7 @@ void parser::next_token(void)
 		token.value += c;
 		state = 1;
 	    } else if(c == '"') {
-		// don't capture the opening quote
+		token.value += c;
 		state = 5;
 	    } else if(c == '\'') {
 		// don't capture the opening quote
@@ -995,7 +1256,7 @@ void parser::next_token(void)
 		    token.type = "id";
 		}
 
-		std::cin.unget();
+		tin.unget();
 		return;
 	    }
 	    break;
@@ -1004,7 +1265,7 @@ void parser::next_token(void)
 	    if(isdigit(c)) {
 		token.value += c;
 	    } else {
-		std::cin.unget();
+		tin.unget();
 		token.type = "num";
 		return;
 	    }
@@ -1033,7 +1294,7 @@ void parser::next_token(void)
 
 	case 5:
 	    if(c == '"') {
-		// don't capture the closing quote
+		token.value += c;
 		token.type = "string";
 		return;
 	    } else {

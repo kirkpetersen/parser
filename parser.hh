@@ -62,57 +62,9 @@ struct parser_state {
     std::list<parser_item> nonkernel_items;
 };
 
-class tree_node {
+struct tree_node {
     symbol head;
     std::list<tree_node> nodes;
-    bool terminal;
-
-public:
-    tree_node(const symbol & t, bool tl) : head(t), terminal(tl) { }
-
-    void insert(tree_node n) {
-	nodes.push_front(n);
-	return;
-    }
-
-    // Assemble a string of everything below this node...
-    void dump_below(void) const {
-	if(terminal) {
-	    std::cout << head.value << " ";
-	}
-
-	std::list<tree_node>::const_iterator ti;
-
-	for(ti = nodes.begin(); ti != nodes.end(); ++ti) {
-	    tree_node tn = *ti;
-
-	    tn.dump_below();
-	}
-
-	return;
-    }
-
-    void dump(unsigned level = 0) const {
-	for(unsigned i = 0; i < level; i++) { std::cout << ' '; }
-
-	dump_below();
-
-	if(terminal) {
-	    std::cout << " <- " << head << '\n';
-	} else {
-	    std::cout << " <- " << head.type << '\n';
-	}
-
-	std::list<tree_node>::const_iterator ti;
-
-	for(ti = nodes.begin(); ti != nodes.end(); ++ti) {
-	    tree_node tn = *ti;
-
-	    tn.dump(level + 1);
-	}
-
-	return;
-    }
 };
 
 class parser {
@@ -135,7 +87,9 @@ class parser {
 public:
     parser(int v = 0) : start("START"), verbose(v) { }
 
-    void run(void);
+    void bootstrap(void);
+
+    void run(std::istream & tin);
 
     void dump_set(const char * msg, const std::set<symbol> & rs);
 
@@ -143,15 +97,32 @@ public:
     void dump_state(const parser_state & ps, unsigned spaces = 0);
     void dump_item(const parser_item & pi, unsigned spaces = 0);
 
-    void dump_tree(void) {
-	if(!node_stack.empty()) {
-	    tree_node tn = node_stack.back();
-	    tn.dump();
-	}
+    void dump_tree(void) const;
+    void dump_tree_below(const tree_node & tn) const;
+    void dump_tree(const tree_node & tn, unsigned level = 0) const;
+
+    const tree_node & tree(void) const {
+	return node_stack.back();
     }
+
+    bool find_node(const tree_node & tn, const symbol & s, tree_node & t) const;
 
     void load(const char * filename);
 
+    void load_tokenizer(const tree_node & tn);
+    void load_token_line_list(const tree_node & tn);
+    void load_token_line(const tree_node & tn);
+    void load_token_list(const tree_node & tn);
+
+    void load_grammar(const tree_node & tn);
+    void load_production_list(const tree_node & tn);
+    void load_production(const tree_node & tn);
+    void load_body_list(const tree_node & tn,
+			std::list<std::vector<symbol> > & p);
+    void load_body(const tree_node & tn, std::vector<symbol> & b);
+    void load_symbol_list(const tree_node & tn, std::vector<symbol> & b);
+    void load_symbol(const tree_node & tn, std::vector<symbol> & b);
+    
     bool terminal(const symbol & s) const {
 	if(productions.count(s) > 0) {
 	    return false;
@@ -194,5 +165,5 @@ public:
 		     const std::list<parser_item> &l1,
 		     std::list<parser_item> & l2);
 
-    void next_token(void);
+    void next_token(std::istream & tin);
 };

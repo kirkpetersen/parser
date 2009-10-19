@@ -1,22 +1,45 @@
 %token id literal
 %%
 
-tokenizer_and_grammar : tokenizer '%%' grammar ;
+tokenizer_and_grammar : tokenizer '%%' grammar
+		      ;
 
-tokenizer : '%token' token_list ;
+tokenizer : token_line_list
+	  ;
 
-token_list : id | id token_list ;
+token_line_list : token_line
+		| token_line token_line_list
+		;
 
-grammar : production_list ;
+token_line : '%token' token_list
+	   | '%start' id
+	   ;
 
-production_list : production | production production_list ;
+token_list : id
+	   | id token_list
+	   ;
 
-production : id ':' body_list ';' ;
+grammar : production_list
+	;
 
-body_list : body | body '|' body_list ;
+production_list : production
+		| production production_list
+		;
 
-body : symbol_list ;
+production : id ':' body_list ';'
+	   ;
 
-symbol_list : symbol | symbol symbol_list ;
+body_list : body
+	  | body '|' body_list
+	  ;
 
-symbol : id | literal ;
+body : symbol_list
+     ;
+
+symbol_list : symbol
+	    | symbol symbol_list
+	    ;
+
+symbol : id
+       | literal
+       ;

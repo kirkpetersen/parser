@@ -1,6 +1,6 @@
 # parser makefile
 
-CPPFLAGS = -Wall -Werror -g -pg -O
+CPPFLAGS = -Wall -Werror -g -pg
 LDFLAGS = -pg
 
 all:	parser test

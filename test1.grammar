@@ -1,4 +1,5 @@
 %token id num
+%start STMT
 %%
 
 STMT : 'if' E 'then' E 'else' E ;

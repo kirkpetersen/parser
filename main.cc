@@ -29,10 +29,18 @@ int main(int argc, char * argv[])
 	return 1;
     }
 
+    std::cout << "loading " << argv[optind] << '\n';
+
+    // Load the user's grammar file
+    // (this bootstraps a parser to read and parse the grammar)
     p.load(argv[optind]);
 
-    p.run();
+    std::cout << "running\n";
 
+    // Now run the user's parser
+    p.run(std::cin);
+
+    // Dump the tree
     p.dump_tree();
 
     return 0;
