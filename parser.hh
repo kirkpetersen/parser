@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <deque>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -67,15 +68,22 @@ struct tree_node {
     std::list<tree_node> nodes;
 };
 
+struct parser_stats {
+    unsigned build_item;
+    unsigned build_item_opts;
+};
+
 class parser {
+    parser_stats stats;
+
     symbol start;
 
     std::map<symbol, std::list<std::vector<symbol> > > productions;
 
-    std::list<parser_state> state_stack;
-    std::list<symbol> symbol_stack;
+    std::deque<parser_state> state_stack;
+    std::deque<symbol> symbol_stack;
 
-    std::list<tree_node> node_stack;
+    std::deque<tree_node> node_stack;
 
     std::set<symbol> tokens;
     std::set<symbol> literals;
@@ -85,11 +93,15 @@ class parser {
     int verbose;
 
 public:
-    parser(int v = 0) : start("START"), verbose(v) { }
+    parser(int v = 0) : start("START"), verbose(v) {
+	memset(&stats, 0, sizeof(stats));
+    }
 
     void bootstrap(void);
 
     void run(std::istream & tin);
+
+    void dump_stats(void);
 
     void dump_set(const char * msg, const std::set<symbol> & rs);
 
@@ -131,7 +143,7 @@ public:
 	}
     }
 
-    void check(const std::list<parser_item> & l,
+    void check(const symbol & t, const std::list<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
     parser_item make_item(const symbol & h, const std::vector<symbol> & b,
@@ -143,12 +155,8 @@ public:
 
     void shift(const parser_state & ps, const symbol & t);
 
-    void reduce(parser_state & ps);
+    void reduce(parser_state & ps, const symbol & t);
 
-    unsigned closure(parser_state & ps,
-		     std::set<parser_item> & v,
-		     std::set<parser_item> & a,
-		     const std::list<parser_item> & items);
     void closure(parser_state & ps);
 
     bool first(const symbol & h, std::set<symbol> & rs);
@@ -157,13 +165,9 @@ public:
     bool first(const std::vector<symbol> & b, unsigned st,
 	       std::set<symbol> & rs);
 
-    void follows(const symbol & fs, std::set<symbol> & rs);
-    void follows(const symbol & fs, std::map<symbol, bool> & v,
-		 std::set<symbol> & rs);
-
     void check_shift(const std::string & t,
 		     const std::list<parser_item> &l1,
 		     std::list<parser_item> & l2);
 
-    void next_token(std::istream & tin);
+    symbol next_token(std::istream & tin);
 };

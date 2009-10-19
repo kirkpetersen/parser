@@ -43,5 +43,7 @@ int main(int argc, char * argv[])
     // Dump the tree
     p.dump_tree();
 
+    p.dump_stats();
+
     return 0;
 }

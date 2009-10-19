@@ -123,6 +123,7 @@ int test_empty(void)
 
     rs.clear();
 
+#if 0
     p.follows(symbol("E"), rs);
     p.dump_set("FOLLOWS(E): ", rs);
 
@@ -147,6 +148,7 @@ int test_empty(void)
     p.dump_set("FOLLOWS(F): ", rs);
 
     rs.clear();
+#endif
 
     vector<symbol> b(3);
 
@@ -190,6 +192,7 @@ int test_lr1(void)
 
     p.load("test3.grammar");
 
+#if 0
     p.follows(symbol("R"), rs);
     p.dump_set("FOLLOWS(R): ", rs);
 
@@ -199,6 +202,7 @@ int test_lr1(void)
     p.dump_set("FOLLOWS(L): ", rs);
 
     rs.clear();
+#endif
 
     p.dump("shift/reduce dump");
 
