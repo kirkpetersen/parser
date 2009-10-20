@@ -91,7 +91,7 @@ int test_empty(void)
     set<symbol> rs;
     bool e;
 
-    p.load("test8.grammar");
+    p.load("tests/test8.grammar");
 
     e = p.first(symbol("F"), rs);
     p.dump_set("FIRST(F): ", rs);
@@ -172,12 +172,10 @@ int test_c(void)
 
     cout << "loading C grammar" << endl;
 
-    p.load("c.grammar");
+    p.load("tests/c2.grammar");
 
     p.first(symbol("translation_unit"), rs);
     p.dump_set("FIRST(translation_unit): ", rs);
-
-    p.dump("dump");
 
     return 0;
 }
@@ -190,7 +188,7 @@ int test_lr1(void)
 
     set<symbol> rs;
 
-    p.load("test3.grammar");
+    p.load("tests/test3.grammar");
 
 #if 0
     p.follows(symbol("R"), rs);
@@ -203,8 +201,6 @@ int test_lr1(void)
 
     rs.clear();
 #endif
-
-    p.dump("shift/reduce dump");
 
     return 0;
 }
