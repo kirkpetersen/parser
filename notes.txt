@@ -1,8 +1,6 @@
 Parser notes
 
 TODO
-- debug LR(1) support
-  - very close
 - begin thinking about efficiency concerns
   - closure is starting to get ugly
   - with the c2 grammar, gprof shows 67% in operator<(parser_item)
@@ -13,6 +11,9 @@ TODO
   - this is required for supporting scoped changes to the grammar
 - write simple test for extending syntax on the fly
   - introduce custom code to trigger
-
-- experiment with grammars for next generation language
-  - typing like ML
+- C API
+  - struct tree_node, char * head, etc
+- tokenizer
+  - separate file (compile time is growing)
+  - simple regex engine (should be easy compared to parser)
+  - tokenizer spec built into grammar files
