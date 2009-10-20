@@ -76,9 +76,9 @@ struct parser_stats {
 class parser {
     parser_stats stats;
 
-    symbol start;
+    std::string start;
 
-    std::map<symbol, std::list<std::vector<symbol> > > productions;
+    std::map<std::string, std::list<std::vector<symbol> > > productions;
 
     std::deque<parser_state> state_stack;
     std::deque<symbol> symbol_stack;
@@ -117,7 +117,8 @@ public:
 	return node_stack.back();
     }
 
-    bool find_node(const tree_node & tn, const symbol & s, tree_node & t) const;
+    bool find_node(const tree_node & tn, const std::string & s,
+		   tree_node & t) const;
 
     void load(const char * filename);
 
@@ -136,7 +137,7 @@ public:
     void load_symbol(const tree_node & tn, std::vector<symbol> & b);
     
     bool terminal(const symbol & s) const {
-	if(productions.count(s) > 0) {
+	if(productions.count(s.type) > 0) {
 	    return false;
 	} else {
 	    return true;

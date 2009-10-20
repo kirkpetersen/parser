@@ -60,76 +60,76 @@ void parser::bootstrap()
 
     // Start production
     body.push_back(symbol("tokenizer_and_grammar"));
-    productions[symbol(start)].push_back(body);
+    productions[start].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("tokenizer"));
     body.push_back(symbol("%%"));
     body.push_back(symbol("grammar"));
-    productions[symbol("tokenizer_and_grammar")].push_back(body);
+    productions["tokenizer_and_grammar"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("tokenizer"));
     body.push_back(symbol("%%"));
     body.push_back(symbol("grammar"));
-    productions[symbol("tokenizer_and_grammar")].push_back(body);
+    productions["tokenizer_and_grammar"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("token_line_list"));
-    productions[symbol("tokenizer")].push_back(body);
+    productions["tokenizer"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("token_line"));
-    productions[symbol("token_line_list")].push_back(body);
+    productions["token_line_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("token_line"));
     body.push_back(symbol("token_line_list"));
-    productions[symbol("token_line_list")].push_back(body);
+    productions["token_line_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("%token"));
     body.push_back(symbol("token_list"));
-    productions[symbol("token_line")].push_back(body);
+    productions["token_line"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("%start"));
     body.push_back(symbol("id"));
-    productions[symbol("token_line")].push_back(body);
+    productions["token_line"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("id"));
-    productions[symbol("token_list")].push_back(body);
+    productions["token_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("id"));
     body.push_back(symbol("token_list"));
-    productions[symbol("token_list")].push_back(body);
+    productions["token_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("production_list"));
-    productions[symbol("grammar")].push_back(body);
+    productions["grammar"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("production"));
-    productions[symbol("production_list")].push_back(body);
+    productions["production_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("production"));
     body.push_back(symbol("production_list"));
-    productions[symbol("production_list")].push_back(body);
+    productions["production_list"].push_back(body);
 
     body.clear();
 
@@ -137,57 +137,57 @@ void parser::bootstrap()
     body.push_back(symbol(":"));
     body.push_back(symbol("body_list"));
     body.push_back(symbol(";"));
-    productions[symbol("production")].push_back(body);
+    productions["production"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("body"));
-    productions[symbol("body_list")].push_back(body);
+    productions["body_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("body"));
     body.push_back(symbol("|"));
     body.push_back(symbol("body_list"));
-    productions[symbol("body_list")].push_back(body);
+    productions["body_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("symbol_list"));
-    productions[symbol("body")].push_back(body);
+    productions["body"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("symbol"));
-    productions[symbol("symbol_list")].push_back(body);
+    productions["symbol_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("symbol"));
     body.push_back(symbol("symbol_list"));
-    productions[symbol("symbol_list")].push_back(body);
+    productions["symbol_list"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("id"));
-    productions[symbol("symbol")].push_back(body);
+    productions["symbol"].push_back(body);
 
     body.clear();
 
     body.push_back(symbol("literal"));
-    productions[symbol("symbol")].push_back(body);
+    productions["symbol"].push_back(body);
 
     return;
 }
 
-bool parser::find_node(const tree_node & tn, const symbol & s,
+bool parser::find_node(const tree_node & tn, const std::string & s,
 		       tree_node & t) const {
     std::list<tree_node>::const_iterator ti;
 
     for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
 	const tree_node & tn2 = *ti;
 
-	if(s == tn2.head) {
+	if(s == tn2.head.type) {
 	    t = tn2;
 	    return true;
 	}
@@ -764,11 +764,12 @@ bool parser::first(const symbol & h, std::map<symbol, bool> & v,
 
     std::list<std::vector<symbol> >::const_iterator li;
 
-    if(productions.count(h) == 0) {
+    if(productions.count(h.type) == 0) {
 	return se;
     }
 
-    for(li = productions[h].begin(); li != productions[h].end(); ++li) {
+    for(li = productions[h.type].begin();
+	li != productions[h.type].end(); ++li) {
 	const std::vector<symbol> & b = *li;
 
 	if(b.empty()) {
@@ -860,7 +861,7 @@ void parser::closure(parser_state & ps)
 	    continue;
 	}
 
-	if(productions.count(s) == 0) {
+	if(productions.count(s.type) == 0) {
 	    std::cerr << "ERROR?\n";
 	    continue;
 	}
@@ -878,7 +879,8 @@ void parser::closure(parser_state & ps)
 	std::list<std::vector<symbol> >::const_iterator li;
 
 	// for ( each production B -> y in G' )
-	for(li = productions[s].begin(); li != productions[s].end(); ++li) {
+	for(li = productions[s.type].begin();
+	    li != productions[s.type].end(); ++li) {
 	    const std::vector<symbol> & b = *li;
 
 	    if(b.empty()) {
@@ -935,7 +937,7 @@ void parser::dump_stats(void)
 
 void parser::dump(const char * msg)
 {
-    std::map<symbol, std::list<std::vector<symbol> > >::const_iterator mi;
+    std::map<std::string, std::list<std::vector<symbol> > >::const_iterator mi;
 
     if(msg) {
 	std::cout << "[" << msg << "]\n";
@@ -1122,11 +1124,7 @@ void parser::dump_tree(const tree_node & tn, unsigned level) const
 
     dump_tree_below(tn);
 
-    if(terminal(tn.head)) {
-	std::cout << " <- " << tn.head << '\n';
-    } else {
-	std::cout << " <- " << tn.head.type << '\n';
-    }
+    std::cout << " <- " << tn.head << '\n';
 
     std::list<tree_node>::const_iterator ti;
 
@@ -1168,9 +1166,13 @@ symbol parser::next_token(std::istream & tin)
 	    } else if(c == '\'') {
 		// don't capture the opening quote
 		state = 4;
+	    } else if(c == '-') {
+		// could be '-' or '->'
+		t.value += c;
+		state = 6;
 	    } else if(c == ';' || c == ':' || c == '{' || c == '}'
-		      || c == '(' || c == ')' || c == '?'
-		      || c == '+' || c == '-' || c == '*' || c == '/'
+		      || c == '(' || c == ')' || c == '?' || c == '&'
+		      || c == '+' || c == '*' || c == '/'
 		      || c == '=' || c == '[' || c == ']') {
 		// single character literal
 		t.type = c;
@@ -1240,6 +1242,19 @@ symbol parser::next_token(std::istream & tin)
 	    } else {
 		t.value += c;
 	    }
+	    break;
+
+	case 6:
+	    if(c == '>') {
+		t.value += c;
+		t.type = t.value;
+		return t;
+	    } else {
+		tin.unget();
+		t.type = t.value;
+		return t;
+	    }
+
 	    break;
 	}
     }
