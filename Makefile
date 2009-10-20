@@ -21,10 +21,10 @@ main.po:	main.cc parser.hh
 	g++ $(CPPFLAGS) -o $@ -c $<
 
 test:	test.o parser.o
-	g++ $(LDFLAGS) -o test test.o parser.o
+	g++ $(LDFLAGS) -o $@ $^
 
 parser:	main.o parser.o
-	g++ $(LDFLAGS) -o parser main.o parser.o
+	g++ $(LDFLAGS) -o $@ $^
 
 parser.popt:	main.po parser.po
 	g++ $(LDFLAGS) -o parser.popt main.po parser.po
