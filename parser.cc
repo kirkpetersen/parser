@@ -387,9 +387,11 @@ void parser::load(const char * filename)
 
     bp.run(fs);
 
-    tree_node tn = bp.tree();
+#if 1
+    tree_node tg = bp.tree();
+#else
+    tree_node tg, tn = bp.tree();
 
-#if 0
     // TODO fix this to work...
     if(!find_node(tn, "tokenizer_and_grammar", tg)) {
 	std::cerr << "invalid grammar\n";
@@ -401,11 +403,11 @@ void parser::load(const char * filename)
 
     tree_node t, g;
 
-    if(find_node(tn, "tokenizer", t)) {
+    if(find_node(tg, "tokenizer", t)) {
 	load_tokenizer(t);
     }
 
-    if(find_node(tn, "grammar", g)) {
+    if(find_node(tg, "grammar", g)) {
 	load_grammar(g);
     }
 
@@ -414,9 +416,9 @@ void parser::load(const char * filename)
     return;
 }
 
-void parser::reduce(parser_state & ps, const symbol & t)
+void parser::reduce(parser_state & ps, const symbol & t, bool final)
 {
-    std::list<parser_item>::const_iterator ki;
+    std::set<parser_item>::const_iterator ki;
 
     // Only kernel items can contain possible reductions
     for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ++ki) {
@@ -480,6 +482,11 @@ void parser::reduce(parser_state & ps, const symbol & t)
 	    dump_item(pi);
 	}
 
+	// Final reduce, possibly used by ACCEPT
+	if(final) {
+	    break;
+	}
+
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
@@ -524,7 +531,7 @@ void parser::run(std::istream & tin)
 
     for(li = sp.begin(); li != sp.end(); ++li) {
 	const parser_item & pi = make_item(start, *li, symbol("$"));
-	ps.kernel_items.push_back(pi);
+	ps.kernel_items.insert(pi);
     }
 
     if(verbose > 2) {
@@ -562,6 +569,10 @@ void parser::run(std::istream & tin)
 	check(token, ps.kernel_items, cs, cr, ca);
 	check(token, ps.nonkernel_items, cs, cr, ca);
 
+	stats.shifts += cs;
+	stats.reduces += cr;
+	stats.accepts += ca;
+
 	if(verbose > 0) {
 	    std::cout << "shifts: " << cs << ", "
 		      << "reduces: " << cr << ", "
@@ -579,6 +590,10 @@ void parser::run(std::istream & tin)
 	}
 
 	if(ca > 0) {
+#if 0
+	    // still not sure which way to go here...
+	    reduce(ps, token, true);
+#endif
 	    break;
 	} else if(cs > 0) {
 	    symbol old = token;
@@ -605,10 +620,10 @@ void parser::run(std::istream & tin)
     return;
 }
 
-void parser::check(const symbol & t, const std::list<parser_item> & l,
+void parser::check(const symbol & t, const std::set<parser_item> & l,
 		   int & cs, int & cr, int & ca)
 {
-    std::list<parser_item>::const_iterator li;
+    std::set<parser_item>::const_iterator li;
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); ++li) {
@@ -673,10 +688,12 @@ parser_item parser::make_item(const symbol & h, const std::vector<symbol> & b,
 }
 
 void parser::build_items(const symbol & t,
-			 const std::list<parser_item> & l,
-			 std::list<parser_item> & n)
+			 const std::set<parser_item> & l,
+			 std::set<parser_item> & n)
 {
-    std::list<parser_item>::const_iterator li;
+    std::set<parser_item>::const_iterator li;
+
+    stats.build_items_calls++;
 
     // For each item from the previous state...
     for(li = l.begin(); li != l.end(); ++li) {
@@ -695,7 +712,6 @@ void parser::build_items(const symbol & t,
 
 	    ni.index++;
 
-#if 0
 	    // TODO can certain states be skipped?
 	    // 'token' is the next applicable token
 	    // if new item is [ A -> /a/ X . /B/ , a ]
@@ -704,15 +720,6 @@ void parser::build_items(const symbol & t,
 	    //
 	    // or would FIRST(/B/ a) be worth it, to eliminate all
 	    // items? does that change the algorithm?
-	    if(ni.index < ni.symbols.size()) {
-		const symbol & s2 = ni.symbols[ni.index];
-
-		if(terminal(s2) && token != s2) {
-		    stats.build_item_opts++;
-		    continue;
-		}
-	    }
-#endif
 
 	    if(verbose > 2) {
 		std::cout << "building new item: ";
@@ -722,7 +729,7 @@ void parser::build_items(const symbol & t,
 	    stats.build_item++;
 
 	    // Add the new item to the new state
-	    n.push_back(ni);
+	    n.insert(ni);
 	}
     }
 
@@ -861,9 +868,10 @@ bool parser::first(const std::vector<symbol> & b, unsigned st,
 void parser::closure(parser_state & ps)
 {
     std::queue<parser_item> queue;
-    std::set<parser_item> added;
 
-    std::list<parser_item>::const_iterator li;
+    std::set<parser_item>::const_iterator li;
+
+    stats.closure_calls++;
 
     // Push kernel items onto queue
     for(li = ps.kernel_items.begin(); li != ps.kernel_items.end(); ++li) {
@@ -871,11 +879,18 @@ void parser::closure(parser_state & ps)
     }
 
     while(!queue.empty()) {
+	stats.closure_loops++;
+
 	parser_item pi = queue.front();
 	queue.pop();
 
 	if(pi.index >= pi.symbols.size()) {
 	    continue;
+	}
+
+	if(verbose > 4) {
+	    std::cout << "closing item: ";
+	    dump_item(pi);
 	}
 
 	const symbol & s = pi.symbols[pi.index];
@@ -898,12 +913,24 @@ void parser::closure(parser_state & ps)
 
 	// FIRST(/B/ a)
 	if(first(beta, pi.index + 1, rs)) {
+	    // Should never happen
 	    std::cerr << "error!\n";
 	}
 
-	if(verbose > 3) {
-	    std::cout << "closure: ";
-	    dump_set("FIRST(): ", rs);
+	if(verbose > 4) {
+	    std::cout << "closure: FIRST(";
+
+	    for(unsigned i = pi.index + 1; i < pi.symbols.size(); i++) {
+		if(terminal(pi.symbols[i])) {
+		    std::cout << pi.symbols[i] << ' ';
+		} else {
+		    std::cout << pi.symbols[i].type << ' ';
+		}
+	    }
+
+	    std::cout << pi.terminal;
+
+	    dump_set("): ", rs);
 	}
 
 	std::list<std::vector<symbol> >::const_iterator li;
@@ -917,22 +944,52 @@ void parser::closure(parser_state & ps)
 		continue;
 	    }
 
+	    if(verbose > 4) {
+		std::cout << "body: " << s.type << " -> ";
+
+		for(unsigned i = 0; i < b.size(); i++) {
+		    if(terminal(b[i])) {
+			std::cout << b[i];
+		    } else {
+			std::cout << b[i].type;
+		    }
+
+		    if(i < b.size() - 1) {
+			std::cout << ' ';
+		    }
+		}
+
+		std::cout << '\n';
+
+		dump_set("terminals: ", rs);
+	    }
+
 	    std::set<symbol>::const_iterator si;
 
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
 		parser_item pi2 = make_item(s, b, *si);
 
-		if(added.count(pi2) > 0) {
+		if(ps.nonkernel_items.count(pi2) > 0) {
+		    stats.closure_item_duplicates++;
+		    if(verbose > 4) {
+			std::cout << "dup: ";
+			dump_item(pi2);
+		    }
 		    continue;
 		}
-		
-		added.insert(pi2);
+
+		if(verbose > 4) {
+		    std::cout << "new: ";
+		    dump_item(pi2);
+		}
 
 		queue.push(pi2);
 
+		stats.closure_item_non_duplicates++;
+
 		// add [B -> . y, b] to set I
-		ps.nonkernel_items.push_back(pi2);
+		ps.nonkernel_items.insert(pi2);
 	    }
 	}
     }
@@ -960,8 +1017,15 @@ void parser::dump_stats(void)
 {
     std::cout << "parser stats:\n";
     std::cout << "build item: " << stats.build_item << '\n';
-    std::cout << "build item optimizations: " << stats.build_item_opts << '\n';
     std::cout << "loops: " << stats.loops << '\n';
+    std::cout << "shifts: " << stats.shifts << '\n';
+    std::cout << "reduces: " << stats.reduces << '\n';
+    std::cout << "accepts: " << stats.accepts << '\n';
+    std::cout << "build_items_calls: " << stats.build_items_calls << '\n';
+    std::cout << "closure_calls: " << stats.closure_calls << '\n';
+    std::cout << "closure_loops: " << stats.closure_loops << '\n';
+    std::cout << "closure_item_duplicates: " << stats.closure_item_duplicates << '\n';
+    std::cout << "closure_item_non_duplicates: " << stats.closure_item_non_duplicates << '\n';
 
     return;
 }
@@ -1002,7 +1066,7 @@ void parser::dump_grammar(void)
 		}
 
 		if(i < size - 1) {
-		    std::cout << " ";
+		    std::cout << ' ';
 		}
 	    }
 
@@ -1033,7 +1097,13 @@ void parser::dump(const char * msg)
     std::deque<symbol>::const_iterator sy;
 
     for(sy = symbol_stack.begin(); sy != symbol_stack.end(); ++sy) {
-	std::cout << "  " << *sy << '\n';
+	const symbol & s = *sy;
+
+	if(terminal(s)) {
+	    std::cout << "  " << s << '\n';
+	} else {
+	    std::cout << "  " << s.type << '\n';
+	}
     }
 
     std::deque<parser_state>::const_iterator st;
@@ -1074,7 +1144,7 @@ void parser::dump(const char * msg)
 }
 
 void parser::dump_state(const parser_state & ps, unsigned spaces) {
-    std::list<parser_item>::const_iterator li;
+    std::set<parser_item>::const_iterator li;
 
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 

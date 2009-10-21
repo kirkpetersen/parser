@@ -59,8 +59,8 @@ bool operator<(const parser_item & p1, const parser_item & p2);
 bool operator==(const parser_item & p1, const parser_item & p2);
 
 struct parser_state {
-    std::list<parser_item> kernel_items;
-    std::list<parser_item> nonkernel_items;
+    std::set<parser_item> kernel_items;
+    std::set<parser_item> nonkernel_items;
 };
 
 struct tree_node {
@@ -70,8 +70,15 @@ struct tree_node {
 
 struct parser_stats {
     unsigned build_item;
-    unsigned build_item_opts;
     unsigned loops;
+    unsigned shifts;
+    unsigned reduces;
+    unsigned accepts;
+    unsigned build_items_calls;
+    unsigned closure_calls;
+    unsigned closure_loops;
+    unsigned closure_item_duplicates;
+    unsigned closure_item_non_duplicates;
 };
 
 class parser {
@@ -146,19 +153,19 @@ public:
 	}
     }
 
-    void check(const symbol & t, const std::list<parser_item> & l,
+    void check(const symbol & t, const std::set<parser_item> & l,
 	       int & cs, int & cr, int & ca);
 
     parser_item make_item(const symbol & h, const std::vector<symbol> & b,
 			  const symbol & t);
 
     void build_items(const symbol & t,
-		     const std::list<parser_item> & l,
-		     std::list<parser_item> & n);
+		     const std::set<parser_item> & l,
+		     std::set<parser_item> & n);
 
     void shift(const parser_state & ps, const symbol & t);
 
-    void reduce(parser_state & ps, const symbol & t);
+    void reduce(parser_state & ps, const symbol & t, bool final = false);
 
     void closure(parser_state & ps);
 
@@ -169,8 +176,8 @@ public:
 	       std::set<symbol> & rs);
 
     void check_shift(const std::string & t,
-		     const std::list<parser_item> &l1,
-		     std::list<parser_item> & l2);
+		     const std::set<parser_item> &l1,
+		     std::set<parser_item> & l2);
 
     symbol next_token(std::istream & tin);
 };

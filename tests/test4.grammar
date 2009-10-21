@@ -1,4 +1,5 @@
-%token
+%token fixme
+%start S
 %%
 
 S : C C ;

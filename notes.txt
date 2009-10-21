@@ -1,6 +1,14 @@
 Parser notes
 
 TODO
+- closure optimizations
+  - lots of duplicates while processing items with different terminals
+  - merge items and include a set of terminals?
+  - requires rewrite of a few things but avoids many loops and
+    count/inserts in closure
+  - currently, most loops in closure are simply creating and dropping
+    duplicate items
+
 - FIRST() and empty
   - page 221
   - compute all FIRST sets at once?

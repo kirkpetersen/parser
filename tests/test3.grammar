@@ -1,4 +1,5 @@
 %token id
+%start S
 %%
 
 S : L '=' R | R ;

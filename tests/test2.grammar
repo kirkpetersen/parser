@@ -1,4 +1,5 @@
 %token id
+%start E
 %%
 
 E : E '+' T | T ;

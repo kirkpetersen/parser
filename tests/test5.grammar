@@ -1,4 +1,5 @@
 %token id num
+%start ELIST
 %%
 
 ELIST : E ';' ELIST | E ;
