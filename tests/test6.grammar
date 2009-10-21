@@ -1,0 +1,13 @@
+%token id
+%start s
+%%
+
+s : x y x
+  ;
+
+x : 'a'
+  |
+  ;
+
+y : 'b'
+  ;

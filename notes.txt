@@ -1,6 +1,11 @@
 Parser notes
 
 TODO
+- FIRST() and empty
+  - page 221
+  - compute all FIRST sets at once?
+  - "until no more terminals or <empty> can be added to any FIRST set"?
+
 - begin thinking about efficiency concerns
   - closure is starting to get ugly
   - with the c2 grammar, gprof shows 67% in operator<(parser_item)

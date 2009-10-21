@@ -71,6 +71,7 @@ struct tree_node {
 struct parser_stats {
     unsigned build_item;
     unsigned build_item_opts;
+    unsigned loops;
 };
 
 class parser {
@@ -106,6 +107,7 @@ public:
     void dump_set(const char * msg, const std::set<symbol> & rs);
 
     void dump(const char * msg = NULL);
+    void dump_grammar(void);
     void dump_state(const parser_state & ps, unsigned spaces = 0);
     void dump_item(const parser_item & pi, unsigned spaces = 0);
 
@@ -161,7 +163,7 @@ public:
     void closure(parser_state & ps);
 
     bool first(const symbol & h, std::set<symbol> & rs);
-    bool first(const symbol & h, std::map<symbol, bool> & v,
+    bool first(const symbol & h, std::set<symbol> & v,
 	       std::set<symbol> & rs);
     bool first(const std::vector<symbol> & b, unsigned st,
 	       std::set<symbol> & rs);

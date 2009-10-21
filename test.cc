@@ -22,6 +22,7 @@ using namespace std;
 int run_test(const char * name);
 
 int test_empty(void);
+int test_empty2(void);
 int test_c(void);
 int test_lr1(void);
 int test_map(void);
@@ -31,6 +32,7 @@ struct test {
     int (*fn)(void);
 } tests[] = {
     { "empty", test_empty },
+    { "empty2", test_empty2 },
     { "c", test_c },
     { "lr1", test_lr1 },
     { "map", test_map },
@@ -95,30 +97,38 @@ int test_empty(void)
 
     e = p.first(symbol("F"), rs);
     p.dump_set("FIRST(F): ", rs);
+    assert(rs.count("(") == 1);
+    assert(rs.count("id") == 1);
     assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("T"), rs);
     p.dump_set("FIRST(T): ", rs);
+    assert(rs.count("(") == 1);
+    assert(rs.count("id") == 1);
     assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("E"), rs);
     p.dump_set("FIRST(E): ", rs);
+    assert(rs.count("(") == 1);
+    assert(rs.count("id") == 1);
     assert(e == false);
 
     rs.clear();
 
     e = p.first(symbol("E2"), rs);
     p.dump_set("FIRST(E2): ", rs);
+    assert(rs.count("+") == 1);
     assert(e == true);
 
     rs.clear();
 
     e = p.first(symbol("T2"), rs);
     p.dump_set("FIRST(T2): ", rs);
+    assert(rs.count("*") == 1);
     assert(e == true);
 
     rs.clear();
@@ -146,18 +156,88 @@ int test_empty(void)
 
     p.follows(symbol("F"), rs);
     p.dump_set("FOLLOWS(F): ", rs);
-
-    rs.clear();
 #endif
 
-    vector<symbol> b(3);
+    rs.clear();
 
-    b[0] = symbol("+");
-    b[1] = symbol("T");
-    b[2] = symbol("E2");
+    {
+	vector<symbol> b(3);
 
-    e = p.first(b, 2, rs);
-    p.dump_set("FIRST(E2): ", rs);
+	b[0] = symbol("+");
+	b[1] = symbol("T");
+	b[2] = symbol("E2");
+
+	e = p.first(b, 1, rs);
+	p.dump_set("FIRST(T E2): ", rs);
+	assert(rs.count("(") == 1);
+	assert(rs.count("id") == 1);
+	assert(e == false);
+    }
+
+    rs.clear();
+
+    {
+	vector<symbol> b(3);
+
+	b[0] = symbol("+");
+	b[1] = symbol("T");
+	b[2] = symbol("E2");
+
+	e = p.first(b, 2, rs);
+	p.dump_set("FIRST(E2): ", rs);
+	assert(rs.count("+") == 1);
+	assert(e == true);
+    }
+
+    return 0;
+}
+
+int test_empty2(void)
+{
+    parser p;
+
+    set<symbol>::const_iterator si;
+
+    set<symbol> rs;
+    bool e;
+
+    p.load("tests/test6.grammar");
+
+    e = p.first(symbol("s"), rs);
+    p.dump_set("FIRST(s): ", rs);
+    assert(rs.count("a") == 1);
+    assert(rs.count("b") == 1);
+    assert(e == false);
+
+    rs.clear();
+
+    e = p.first(symbol("x"), rs);
+    p.dump_set("FIRST(x): ", rs);
+    assert(rs.count("a") == 1);
+    assert(e == true);
+
+    rs.clear();
+
+    e = p.first(symbol("y"), rs);
+    p.dump_set("FIRST(y): ", rs);
+    assert(rs.count("b") == 1);
+    assert(e == false);
+
+    rs.clear();
+
+    {
+	vector<symbol> b(3);
+
+	b[0] = symbol("x");
+	b[1] = symbol("y");
+	b[2] = symbol("x");
+
+	e = p.first(b, 0, rs);
+	p.dump_set("FIRST(x y x): ", rs);
+	assert(rs.count("a") == 1);
+	assert(rs.count("b") == 1);
+	assert(e == false);
+    }
 
     return 0;
 }

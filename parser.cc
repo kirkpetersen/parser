@@ -541,6 +541,8 @@ void parser::run(std::istream & tin)
     token = next_token(tin);
 
     for(;;) {
+	stats.loops++;
+
 	if(verbose > 0) {
 	    std::cout << "LOOP: " << loop++
 		      << ", token: " << token.type
@@ -766,7 +768,7 @@ void parser::shift(const parser_state & ps, const symbol & t)
     return;
 }
 
-bool parser::first(const symbol & h, std::map<symbol, bool> & v,
+bool parser::first(const symbol & h, std::set<symbol> & v,
 		   std::set<symbol> & rs)
 {
     bool se = false;
@@ -777,15 +779,16 @@ bool parser::first(const symbol & h, std::map<symbol, bool> & v,
 	return se;
     }
 
-    if(v[h]) {
+    if(v.count(h) > 0) {
 	return se;
     }
 
-    v[h] = true;
+    v.insert(h);
 
     std::list<std::vector<symbol> >::const_iterator li;
 
     if(productions.count(h.type) == 0) {
+	std::cerr << "error!\n";
 	return se;
     }
 
@@ -806,7 +809,6 @@ bool parser::first(const symbol & h, std::map<symbol, bool> & v,
 	    // Now add the FIRST of the current symbol
 	    if(first(s, v, rs)) {
 		// If empty symbol was seen, we continue with this body
-		se = true;
 		continue;
 	    } else {
 		// Otherwise break and continue with the next body
@@ -814,7 +816,7 @@ bool parser::first(const symbol & h, std::map<symbol, bool> & v,
 	    }
 	}
 
-	// If we make it to the end of the body, it means that All of
+	// If we make it to the end of the body, it means that all of
 	// the symbols include an empty body, so indicate that we've
 	// seen it
 	if(i == b.size()) {
@@ -827,7 +829,7 @@ bool parser::first(const symbol & h, std::map<symbol, bool> & v,
 
 bool parser::first(const symbol & h, std::set<symbol> & rs)
 {
-    std::map<symbol, bool> visited;
+    std::set<symbol> visited;
 
     // Call the recursive version with the visited map
     return first(h, visited, rs);
@@ -895,7 +897,14 @@ void parser::closure(parser_state & ps)
 	std::set<symbol> rs;
 
 	// FIRST(/B/ a)
-	first(beta, pi.index + 1, rs);
+	if(first(beta, pi.index + 1, rs)) {
+	    std::cerr << "error!\n";
+	}
+
+	if(verbose > 3) {
+	    std::cout << "closure: ";
+	    dump_set("FIRST(): ", rs);
+	}
 
 	std::list<std::vector<symbol> >::const_iterator li;
 
@@ -952,58 +961,66 @@ void parser::dump_stats(void)
     std::cout << "parser stats:\n";
     std::cout << "build item: " << stats.build_item << '\n';
     std::cout << "build item optimizations: " << stats.build_item_opts << '\n';
+    std::cout << "loops: " << stats.loops << '\n';
+
+    return;
+}
+
+void parser::dump_grammar(void)
+{
+    dump_set("tokens: ", tokens);
+    dump_set("literals: ", literals);
+
+    std::cout << "productions:\n";
+
+    std::map<std::string, std::list<std::vector<symbol> > >::const_iterator mi;
+
+    // For each production...
+    for(mi = productions.begin(); mi != productions.end(); ++mi) {
+	const symbol & h = mi->first;
+	const std::list<std::vector<symbol> > & l = mi->second;
+
+	std::list<std::vector<symbol> >::const_iterator li;
+
+	// This handles multiple productions with the same head
+	for(li = l.begin(); li != l.end(); ++li) {
+	    const std::vector<symbol> & v = *li;
+	    unsigned size = v.size();
+
+	    std::cout << " " << h.type << " -> ";
+
+	    std::list<symbol>::const_iterator li2;
+
+	    // Iterates through the symbols
+	    for(unsigned i = 0; i < size; i++) {
+		const symbol & s = v[i];
+
+		if(terminal(s)) {
+		    std::cout << s;
+		} else {
+		    std::cout << s.type;
+		}
+
+		if(i < size - 1) {
+		    std::cout << " ";
+		}
+	    }
+
+	    std::cout << '\n';
+	}
+    }
 
     return;
 }
 
 void parser::dump(const char * msg)
 {
-    std::map<std::string, std::list<std::vector<symbol> > >::const_iterator mi;
-
     if(msg) {
 	std::cout << "[" << msg << "]\n";
     }
 
     if(verbose > 3) {
-	dump_set("tokens: ", tokens);
-	dump_set("literals: ", literals);
-
-	std::cout << "productions:\n";
-
-	// For each production...
-	for(mi = productions.begin(); mi != productions.end(); ++mi) {
-	    const symbol & h = mi->first;
-	    const std::list<std::vector<symbol> > & l = mi->second;
-
-	    std::list<std::vector<symbol> >::const_iterator li;
-
-	    // This handles multiple productions with the same head
-	    for(li = l.begin(); li != l.end(); ++li) {
-		const std::vector<symbol> & v = *li;
-		unsigned size = v.size();
-
-		std::cout << " " << h.type << " -> ";
-
-		std::list<symbol>::const_iterator li2;
-
-		// Iterates through the symbols
-		for(unsigned i = 0; i < size; i++) {
-		    const symbol & s = v[i];
-
-		    if(terminal(s)) {
-			std::cout << s;
-		    } else {
-			std::cout << s.type;
-		    }
-
-		    if(i < size - 1) {
-			std::cout << " ";
-		    }
-		}
-
-		std::cout << '\n';
-	    }
-	}
+	dump_grammar();
     }
 
     std::cout << "parser state:\n";
@@ -1036,11 +1053,13 @@ void parser::dump(const char * msg)
     } else {
 	std::cout << " state stack (kernel items of top state only):\n";
 
-	const parser_state & ps = state_stack.back();
+	if(!state_stack.empty()) {
+	    const parser_state & ps = state_stack.back();
 
-	std::cout << "  state " << state_stack.size() - 1 << '\n';
+	    std::cout << "  state " << state_stack.size() - 1 << '\n';
 
-	dump_state(ps, 3);
+	    dump_state(ps, 3);
+	}
     }
 
     if(verbose > 3) {
