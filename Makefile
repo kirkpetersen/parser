@@ -1,6 +1,6 @@
 # parser makefile
 
-CPPFLAGS = -Wall -Werror -g -O3
+CPPFLAGS = -Wall -Werror -g
 LDFLAGS = 
 
 all:	parser

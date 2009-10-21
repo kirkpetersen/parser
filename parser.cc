@@ -55,6 +55,8 @@ void parser::bootstrap()
     literals.insert(symbol(":"));
     literals.insert(symbol(";"));
     literals.insert(symbol("|"));
+    literals.insert(symbol("{"));
+    literals.insert(symbol("}"));
 
     std::vector<symbol> body;
 
@@ -153,6 +155,13 @@ void parser::bootstrap()
 
     body.clear();
 
+    // FIXME should simply be an empty body
+    body.push_back(symbol("body"));
+    body.push_back(symbol("|"));
+    productions["body_list"].push_back(body);
+
+    body.clear();
+
     body.push_back(symbol("symbol_list"));
     productions["body"].push_back(body);
 
@@ -175,6 +184,12 @@ void parser::bootstrap()
     body.clear();
 
     body.push_back(symbol("literal"));
+    productions["symbol"].push_back(body);
+
+    body.clear();
+
+    body.push_back(symbol("{"));
+    body.push_back(symbol("}"));
     productions["symbol"].push_back(body);
 
     return;
@@ -239,7 +254,7 @@ void parser::load_body(const tree_node & tn, std::vector<symbol> & b)
 void parser::load_body_list(const tree_node & tn,
 			    std::list<std::vector<symbol> > & p)
 {
-    tree_node b, bl;
+    tree_node b, bl, pipe;
 
     if(find_node(tn, "body", b)) {
 	std::vector<symbol> body;
@@ -251,6 +266,12 @@ void parser::load_body_list(const tree_node & tn,
 
     if(find_node(tn, "body_list", bl)) {
 	load_body_list(bl, p);
+    } else if(find_node(tn, "|", pipe)) {
+	std::vector<symbol> body;
+
+	// If body_list is not found but a pipe is, this signifies an
+	// empty body
+	p.push_back(body);
     }
 
     return;

@@ -31,6 +31,7 @@ production : id ':' body_list ';'
 
 body_list : body
 	  | body '|' body_list
+	  |
 	  ;
 
 body : symbol_list
@@ -42,4 +43,5 @@ symbol_list : symbol
 
 symbol : id
        | literal
+       | '{' '}'
        ;
