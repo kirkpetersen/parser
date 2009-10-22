@@ -172,8 +172,7 @@ public:
     bool first(const symbol & h, std::set<symbol> & rs);
     bool first(const symbol & h, std::set<symbol> & v,
 	       std::set<symbol> & rs);
-    bool first(const std::vector<symbol> & b, unsigned st,
-	       std::set<symbol> & rs);
+    void first(const parser_item & pi, std::set<symbol> & rs);
 
     void check_shift(const std::string & t,
 		     const std::set<parser_item> &l1,

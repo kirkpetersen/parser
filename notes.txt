@@ -9,18 +9,11 @@ TODO
   - currently, most loops in closure are simply creating and dropping
     duplicate items
 
-- FIRST() and empty
-  - page 221
-  - compute all FIRST sets at once?
-  - "until no more terminals or <empty> can be added to any FIRST set"?
-
 - begin thinking about efficiency concerns
   - closure is starting to get ugly
   - with the c2 grammar, gprof shows 67% in operator<(parser_item)
   - hash_map or unordered_map?  or just new data structure?
-- write code to display specific shift/reduce issue
-  - this will allow running without such extensive dumping
-- convert production has into stack of productions
+- convert productions into stack of productions
   - this is required for supporting scoped changes to the grammar
 - write simple test for extending syntax on the fly
   - introduce custom code to trigger

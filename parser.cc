@@ -829,27 +829,24 @@ bool parser::first(const symbol & h, std::set<symbol> & rs)
     return first(h, visited, rs);
 }
 
-bool parser::first(const std::vector<symbol> & b, unsigned st,
-		   std::set<symbol> & rs)
+void parser::first(const parser_item & pi, std::set<symbol> & rs)
 {
-    unsigned i;
+    unsigned size = pi.symbols.size();
 
-    // This can possibly be merged with the other FIRST...
-
-    for(i = st; i < b.size(); i++) {
-	const symbol & s = b[i];
+    for(unsigned i = pi.index + 1; i < size; i++) {
+	const symbol & s = pi.symbols[i];
 
 	if(first(s, rs)) {
 	    // If empty body was seen, we continue with this body
 	    continue;
 	} else {
-	    return false;
+	    return;
 	}
     }
 
-    // Unlike the other FIRST() functions above, this returns true
-    // only if all symbols yield a possible empty
-    return true;
+    rs.insert(pi.terminal);
+
+    return;
 }
 
 void parser::closure(parser_state & ps)
@@ -891,18 +888,10 @@ void parser::closure(parser_state & ps)
 	    continue;
 	}
 
-	// Create temporary vector for [/B/, a]
-	std::vector<symbol> beta(pi.symbols);
-
-	beta.push_back(pi.terminal);
-
 	std::set<symbol> rs;
 
 	// FIRST(/B/ a)
-	if(first(beta, pi.index + 1, rs)) {
-	    // Should never happen
-	    std::cerr << "error!\n";
-	}
+	first(pi, rs);
 
 	if(verbose > 4) {
 	    std::cout << "closure: FIRST(";
