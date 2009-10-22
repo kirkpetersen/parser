@@ -4,8 +4,7 @@ A quick brain dump for now...
 
 This is a library to help users parse things.
 
-It currently supports simple LR grammars. It will eventually support
-LR(1) or LALR(1) grammars.
+The parser supports LR(1) grammars.
 
 Unlike tools like bison or yacc, this library will generate parsers at
 runtime. It will also allow the user to load a grammar and make
