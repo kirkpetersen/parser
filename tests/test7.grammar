@@ -1,0 +1,22 @@
+%token id num
+%start S
+%%
+
+S : E ';' S
+  | E
+  ;
+
+E : num '+' num
+  | 'define' syntax
+  ;
+
+syntax : id '->' symbol_list
+       ;
+
+symbol_list : symbol symbol_list
+	    | symbol
+	    ;
+
+symbol : id
+       | literal
+       ;

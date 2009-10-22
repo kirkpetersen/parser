@@ -468,6 +468,29 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	    dump_item(pi);
 	}
 
+#if 1
+	// FIXME
+	// experiment with syntax definition
+	// this is probably where post actions would fire...
+	if(head.type == "syntax") {
+	    const tree_node & sn = node_stack.back();
+	    tree_node h, sl;
+
+	    std::cout << "SYNTAX!\n";
+
+	    if(find_node(sn, "id", h)) {
+		std::cout << "head: " << h.head << '\n';
+	    }
+
+	    std::vector<symbol> body;
+
+	    // This should do the trick...
+	    load_body(sn, body);
+
+	    productions[h.head.value].push_back(body);
+	}
+#endif
+
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
