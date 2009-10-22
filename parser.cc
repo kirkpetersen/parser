@@ -73,13 +73,6 @@ void parser::bootstrap()
 
     body.clear();
 
-    body.push_back(symbol("tokenizer"));
-    body.push_back(symbol("%%"));
-    body.push_back(symbol("grammar"));
-    productions["tokenizer_and_grammar"].push_back(body);
-
-    body.clear();
-
     body.push_back(symbol("token_line_list"));
     productions["tokenizer"].push_back(body);
 
@@ -108,7 +101,7 @@ void parser::bootstrap()
 
     body.clear();
 
-    body.push_back(symbol("id"));
+    // empty
     productions["token_list"].push_back(body);
 
     body.clear();
@@ -155,9 +148,7 @@ void parser::bootstrap()
 
     body.clear();
 
-    // FIXME should simply be an empty body
-    body.push_back(symbol("body"));
-    body.push_back(symbol("|"));
+    // empty
     productions["body_list"].push_back(body);
 
     body.clear();
@@ -256,22 +247,19 @@ void parser::load_body_list(const tree_node & tn,
 {
     tree_node b, bl, pipe;
 
+    std::vector<symbol> body;
+
+    // Look for the body
     if(find_node(tn, "body", b)) {
-	std::vector<symbol> body;
-
 	load_body(b, body);
-
-	p.push_back(body);
     }
 
+    // Either push the body or <empty> onto the production list
+    p.push_back(body);
+
+    // Continue with the body_list if there is one
     if(find_node(tn, "body_list", bl)) {
 	load_body_list(bl, p);
-    } else if(find_node(tn, "|", pipe)) {
-	std::vector<symbol> body;
-
-	// If body_list is not found but a pipe is, this signifies an
-	// empty body
-	p.push_back(body);
     }
 
     return;
@@ -378,7 +366,10 @@ void parser::load_grammar(const tree_node & tn)
 
 void parser::load(const char * filename)
 {
-    parser bp;
+    const char * env = getenv("PARSER_BOOTSTRAP_VERBOSE");
+    unsigned v = env ? atoi(env) : 0;
+
+    parser bp(v);
 
     // This parser is used to load the user's grammar file
     bp.bootstrap();
@@ -416,21 +407,16 @@ void parser::load(const char * filename)
     return;
 }
 
-void parser::reduce(parser_state & ps, const symbol & t, bool final)
+bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 {
+    const std::set<parser_item> & items = k ? ps.kernel_items : ps.nonkernel_items;
     std::set<parser_item>::const_iterator ki;
 
-    // Only kernel items can contain possible reductions
-    for(ki = ps.kernel_items.begin(); ki != ps.kernel_items.end(); ++ki) {
+    for(ki = items.begin(); ki != items.end(); ++ki) {
 
 	// This can't be a reference or bad things happen when the
 	// state is popped off the stack
 	parser_item pi = *ki;
-
-	if(verbose > 2) {
-	    std::cout << "trying to reduce by: ";
-	    dump_item(pi);
-	}
 
 	// Skip any item without the dot at the end
 	if(pi.index != pi.symbols.size()) {
@@ -482,11 +468,6 @@ void parser::reduce(parser_state & ps, const symbol & t, bool final)
 	    dump_item(pi);
 	}
 
-	// Final reduce, possibly used by ACCEPT
-	if(final) {
-	    break;
-	}
-
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
@@ -498,7 +479,7 @@ void parser::reduce(parser_state & ps, const symbol & t, bool final)
 
 	if(ns.kernel_items.empty()) {
 	    std::cout << "no match for " << head << '\n';
-	    return;
+	    return false;
 	}
 
 	if(verbose > 2) {
@@ -509,10 +490,10 @@ void parser::reduce(parser_state & ps, const symbol & t, bool final)
 
 	state_stack.push_back(ns);
 
-	break;
+	return true;
     }
 
-    return;
+    return false;
 }
 
 void parser::run(std::istream & tin)
@@ -590,10 +571,6 @@ void parser::run(std::istream & tin)
 	}
 
 	if(ca > 0) {
-#if 0
-	    // still not sure which way to go here...
-	    reduce(ps, token, true);
-#endif
 	    break;
 	} else if(cs > 0) {
 	    symbol old = token;
@@ -607,7 +584,17 @@ void parser::run(std::istream & tin)
 	    // Set the current state to the one shift() created
 	    ps = state_stack.back();
 	} else if(cr > 0) {
-	    reduce(ps, token);
+	    bool match = reduce(ps, token);
+
+	    // Only check nonkernel items if there isn't a match with
+	    // the kernel items. Most reduces are in the kernel items.
+	    if(!match) {
+		if(verbose > 3) {
+		    std::cout << "checking nonkernel items for reduce\n";
+		}
+
+		reduce(ps, token, false);
+	    }
 
 	    ps = state_stack.back();
 
@@ -940,10 +927,6 @@ void parser::closure(parser_state & ps)
 	    li != productions[s.type].end(); ++li) {
 	    const std::vector<symbol> & b = *li;
 
-	    if(b.empty()) {
-		continue;
-	    }
-
 	    if(verbose > 4) {
 		std::cout << "body: " << s.type << " -> ";
 
@@ -1190,13 +1173,11 @@ void parser::dump_item(const parser_item & pi, unsigned spaces) {
 	    std::cout << pi.symbols[i].type;
 	}
 
-	if(i < size - 1) {
-	    std::cout << " ";
-	}
+	std::cout << " ";
     }
 
     if(pi.index == size) {
-	std::cout << " .";
+	std::cout << ".";
     }
 
     std::cout << " {" << pi.terminal.type << "}\n";

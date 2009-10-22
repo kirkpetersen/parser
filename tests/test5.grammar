@@ -5,7 +5,7 @@
 ELIST : E ';' ELIST | E ;
 
 E : '{' ELIST '}'
-  | E = E
+  | E '=' E
   | 'if' E 'then' E 'else' E
   | E '+' T
   | E '-' T

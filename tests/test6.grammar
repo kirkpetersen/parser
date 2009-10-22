@@ -1,13 +1,13 @@
-%token id
+%token id num
 %start s
 %%
 
 s : x y x
   ;
 
-x : 'a'
+x : id
   |
   ;
 
-y : 'b'
+y : num
   ;

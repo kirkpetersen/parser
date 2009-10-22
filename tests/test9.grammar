@@ -15,8 +15,8 @@ token_line : '%token' token_list
 	   | '%start' id
 	   ;
 
-token_list : id
-	   | id token_list
+token_list : id token_list
+	   |
 	   ;
 
 grammar : production_list

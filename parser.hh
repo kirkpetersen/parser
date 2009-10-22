@@ -165,7 +165,7 @@ public:
 
     void shift(const parser_state & ps, const symbol & t);
 
-    void reduce(parser_state & ps, const symbol & t, bool final = false);
+    bool reduce(parser_state & ps, const symbol & t, bool k = true);
 
     void closure(parser_state & ps);
 
