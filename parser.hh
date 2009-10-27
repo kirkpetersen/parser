@@ -63,9 +63,38 @@ struct parser_item {
 bool operator<(const parser_item & p1, const parser_item & p2);
 bool operator==(const parser_item & p1, const parser_item & p2);
 
+struct parser_item_compare {
+    bool operator()(const parser_item * p1, const parser_item * p2) const {
+	const bool i = p1->index == p2->index;
+
+	if(i) {
+	    const bool h = p1->head == p2->head;
+
+	    if(h) {
+		const bool s = p1->symbols == p2->symbols;
+
+		if(s) {
+		    if(p1->terminal < p2->terminal) {
+			return true;
+		    }
+
+		} else if(p1->symbols < p2->symbols) {
+		    return true;
+		}
+	    } else if(p1->head < p2->head) {
+		return true;
+	    }
+	} else if(p1->index < p2->index) {
+	    return true;
+	}
+
+	return false;
+    }
+};
+
 struct parser_state {
-    std::set<parser_item *> kernel_items;
-    std::set<parser_item *> nonkernel_items;
+    std::set<parser_item *, parser_item_compare> kernel_items;
+    std::set<parser_item *, parser_item_compare> nonkernel_items;
 };
 
 struct parser_stats {
@@ -149,15 +178,16 @@ public:
 	}
     }
 
-    void check(const symbol & t, const std::set<parser_item *> & l,
+    void check(const symbol & t,
+	       const std::set<parser_item *, parser_item_compare> & l,
 	       int & cs, int & cr, int & ca);
 
     parser_item * make_item(const symbol & h, const std::vector<symbol> & b,
 			    const symbol & t);
 
     void build_items(const symbol & t,
-		     const std::set<parser_item *> & l,
-		     std::set<parser_item *> & n);
+		     const std::set<parser_item *, parser_item_compare> & l,
+		     std::set<parser_item *, parser_item_compare> & n);
 
     void shift(const parser_state * ps, const symbol & t);
 

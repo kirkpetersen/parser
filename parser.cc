@@ -288,9 +288,9 @@ void parser::load(const char * filename)
 
 bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 {
-    const std::set<parser_item *> & items = k ? ps->kernel_items : ps->nonkernel_items;
+    const std::set<parser_item *, parser_item_compare> & items = k ? ps->kernel_items : ps->nonkernel_items;
 
-    std::set<parser_item *>::const_iterator ki;
+    std::set<parser_item *, parser_item_compare>::const_iterator ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
 
@@ -515,7 +515,8 @@ void parser::run(std::istream & tin)
     return;
 }
 
-void parser::check(const symbol & t, const std::set<parser_item *> & l,
+void parser::check(const symbol & t,
+		   const std::set<parser_item *, parser_item_compare> & l,
 		   int & cs, int & cr, int & ca)
 {
     std::set<parser_item *>::const_iterator li;
@@ -584,8 +585,8 @@ parser_item * parser::make_item(const symbol & h,
 }
 
 void parser::build_items(const symbol & t,
-			 const std::set<parser_item *> & l,
-			 std::set<parser_item *> & n)
+			 const std::set<parser_item *, parser_item_compare> & l,
+			 std::set<parser_item *, parser_item_compare> & n)
 {
     std::set<parser_item *>::const_iterator li;
 
@@ -850,6 +851,8 @@ void parser::closure(parser_state * ps)
 
 	    std::set<symbol>::const_iterator si;
 
+	    bool dup_test = false;
+
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
 		parser_item * pi2 = make_item(s, rule->symbols, *si);
@@ -860,12 +863,17 @@ void parser::closure(parser_state * ps)
 			std::cout << "dup: ";
 			dump_item(pi2);
 		    }
+		    dup_test = true;
 		    continue;
 		}
 
 		if(verbose > 4) {
 		    std::cout << "new: ";
 		    dump_item(pi2);
+
+		    if(dup_test) {
+			std::cout << "caught!\n";
+		    }
 		}
 
 		queue.push(pi2);
@@ -1022,6 +1030,10 @@ void parser::dump(const char * msg)
 	if(node_stack.size() > 0) {
 	    tree_node_dump(node_stack.back(), 2);
 	}
+    }
+
+    if(verbose > 4) {
+	dump_stats();
     }
 
     return;
