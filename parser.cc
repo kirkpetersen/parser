@@ -84,7 +84,7 @@ parser::~parser(void)
 
 void parser::build_rule(const std::string & head, ...)
 {
-    std::vector<symbol> body;
+    parser_rule * rule = new parser_rule;
     va_list ap;
 
     // add to body with va_args
@@ -97,12 +97,12 @@ void parser::build_rule(const std::string & head, ...)
 	    break;
 	}
 
-	body.push_back(std::string(p));
+	rule->symbols.push_back(p);
     }
 
     va_end(ap);
 
-    productions[head].push_back(body);
+    productions[head].push_back(rule);
 
     return;
 }
@@ -172,11 +172,11 @@ void parser::load_tokenizer(struct tree_node * tn)
 		}
 	    } else if((x = tree_node_find(line, "%start"))) {
 		struct tree_node * s = tree_node_find(line, "id");
-		std::vector<symbol> body;
+		parser_rule * rule = new parser_rule;
 
-		body.push_back(s->value);
+		rule->symbols.push_back(s->value);
 
-		productions[start].push_back(body);
+		productions[start].push_back(rule);
 	    }
 	}
     }
@@ -194,7 +194,7 @@ void parser::load_production(struct tree_node * tn)
 	// load body list into productions[id.head.value]
 
 	while((bl = tree_node_find(bl, "body_list"))) {
-	    std::vector<symbol> b;
+	    parser_rule * rule = new parser_rule;
 	    struct tree_node * body = bl;
 
 	    while((body = tree_node_find(body, "body"))) {
@@ -207,19 +207,19 @@ void parser::load_production(struct tree_node * tn)
 			struct tree_node * x;
 
 			if((x = tree_node_find(s, "id"))) {
-			    b.push_back(x->value);
+			    rule->symbols.push_back(x->value);
 			} else if((x = tree_node_find(s, "literal"))) {
 			    literals.insert(x->value);
-			    b.push_back(x->value);
+			    rule->symbols.push_back(x->value);
 			} else if((x = tree_node_find(s, "num"))) {
-			    b.push_back(symbol("ref", x->value));
+			    rule->symbols.push_back(symbol("ref", x->value));
 			}
 			// action...
 		    }
 		}
 	    }
 
-	    productions[id->value].push_back(b);
+	    productions[id->value].push_back(rule);
 	}
     }
 
@@ -367,12 +367,12 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 		std::cout << "head: " << h.head << '\n';
 	    }
 
-	    std::vector<symbol> body;
+	    parser_rule * rule = new parser_rule;
 
 	    // This should do the trick...
-	    load_body(sn, body);
+	    load_body(sn, rule->symbols);
 
-	    productions[h.head.value].push_back(body);
+	    productions[h.head.value].push_back(rule);
 	}
 #endif
 
@@ -406,7 +406,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 
 void parser::run(std::istream & tin)
 {
-    std::list<std::vector<symbol> > sp = productions[start];
+    std::list<parser_rule *> sp = productions[start];
 
     if(sp.empty()) {
 	std::cerr << "no start state!\n";
@@ -416,10 +416,10 @@ void parser::run(std::istream & tin)
     // Create the initial parser state
     parser_state * ps = new parser_state;
 
-    std::list<std::vector<symbol> >::const_iterator li;
+    std::list<parser_rule *>::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); ++li) {
-	parser_item * pi = make_item(start, *li, symbol("$"));
+	parser_item * pi = make_item(start, (*li)->symbols, symbol("$"));
 	ps->kernel_items.insert(pi);
     }
 
@@ -691,7 +691,7 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
 
     v.insert(h);
 
-    std::list<std::vector<symbol> >::const_iterator li;
+    std::list<parser_rule *>::const_iterator li;
 
     if(productions.count(h.type) == 0) {
 	std::cerr << "error!\n";
@@ -700,17 +700,17 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
 
     for(li = productions[h.type].begin();
 	li != productions[h.type].end(); ++li) {
-	const std::vector<symbol> & b = *li;
+	const parser_rule * rule = *li;
 
-	if(b.empty()) {
+	if(rule->symbols.empty()) {
 	    se = true;
 	    continue;
 	}
 
 	unsigned i;
 
-	for(i = 0; i < b.size(); i++) {
-	    const symbol & s = b[i];
+	for(i = 0; i < rule->symbols.size(); i++) {
+	    const symbol & s = rule->symbols[i];
 
 	    // Now add the FIRST of the current symbol
 	    if(first(s, v, rs)) {
@@ -725,7 +725,7 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
 	// If we make it to the end of the body, it means that all of
 	// the symbols include an empty body, so indicate that we've
 	// seen it
-	if(i == b.size()) {
+	if(i == rule->symbols.size()) {
 	    se = true;
 	}
     }
@@ -821,24 +821,24 @@ void parser::closure(parser_state * ps)
 	    dump_set("): ", rs);
 	}
 
-	std::list<std::vector<symbol> >::const_iterator li;
+	std::list<parser_rule *>::const_iterator li;
 
 	// for ( each production B -> y in G' )
 	for(li = productions[s.type].begin();
 	    li != productions[s.type].end(); ++li) {
-	    const std::vector<symbol> & b = *li;
+	    parser_rule * rule = *li;
 
 	    if(verbose > 4) {
 		std::cout << "body: " << s.type << " -> ";
 
-		for(unsigned i = 0; i < b.size(); i++) {
-		    if(terminal(b[i])) {
-			std::cout << b[i];
+		for(unsigned i = 0; i < rule->symbols.size(); i++) {
+		    if(terminal(rule->symbols[i])) {
+			std::cout << rule->symbols[i];
 		    } else {
-			std::cout << b[i].type;
+			std::cout << rule->symbols[i].type;
 		    }
 
-		    if(i < b.size() - 1) {
+		    if(i < rule->symbols.size() - 1) {
 			std::cout << ' ';
 		    }
 		}
@@ -852,7 +852,7 @@ void parser::closure(parser_state * ps)
 
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
-		parser_item * pi2 = make_item(s, b, *si);
+		parser_item * pi2 = make_item(s, rule->symbols, *si);
 
 		if(ps->nonkernel_items.count(pi2) > 0) {
 		    stats.closure_item_duplicates++;
@@ -921,19 +921,19 @@ void parser::dump_grammar(void)
 
     std::cout << "productions:\n";
 
-    std::map<std::string, std::list<std::vector<symbol> > >::const_iterator mi;
+    std::map<std::string, std::list<parser_rule *> >::const_iterator mi;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); ++mi) {
 	const symbol & h = mi->first;
-	const std::list<std::vector<symbol> > & l = mi->second;
+	const std::list<parser_rule *> & l = mi->second;
 
-	std::list<std::vector<symbol> >::const_iterator li;
+	std::list<parser_rule *>::const_iterator li;
 
 	// This handles multiple productions with the same head
 	for(li = l.begin(); li != l.end(); ++li) {
-	    const std::vector<symbol> & v = *li;
-	    unsigned size = v.size();
+	    const parser_rule * rule = *li;
+	    unsigned size = rule->symbols.size();
 
 	    std::cout << " " << h.type << " -> ";
 
@@ -941,7 +941,7 @@ void parser::dump_grammar(void)
 
 	    // Iterates through the symbols
 	    for(unsigned i = 0; i < size; i++) {
-		const symbol & s = v[i];
+		const symbol & s = rule->symbols[i];
 
 		if(terminal(s)) {
 		    std::cout << s;

@@ -81,12 +81,17 @@ struct parser_stats {
     unsigned closure_item_non_duplicates;
 };
 
+struct parser_rule {
+    symbol head;
+    std::vector<symbol> symbols;
+};
+
 class parser {
     parser_stats stats;
 
     std::string start;
 
-    std::map<std::string, std::list<std::vector<symbol> > > productions;
+    std::map<std::string, std::list<parser_rule *> > productions;
 
     std::deque<parser_state *> state_stack;
     std::deque<symbol> symbol_stack;
