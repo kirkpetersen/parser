@@ -288,33 +288,33 @@ void parser::load(const char * filename)
 
 bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 {
-    const std::set<parser_item> & items = k ? ps->kernel_items : ps->nonkernel_items;
+    const std::set<parser_item *> & items = k ? ps->kernel_items : ps->nonkernel_items;
 
-    std::set<parser_item>::const_iterator ki;
+    std::set<parser_item *>::const_iterator ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
 
 	// This can't be a reference or bad things happen when the
 	// state is popped off the stack
-	parser_item pi = *ki;
+	parser_item * pi = *ki;
 
 	// Skip any item without the dot at the end
-	if(pi.index != pi.symbols.size()) {
+	if(pi->index != pi->symbols.size()) {
 	    continue;
 	}
 
 	// Skip any item that doesn't match the token
-	if(t != pi.terminal) {
+	if(t != pi->terminal) {
 	    continue;
 	}
 
-	unsigned n = pi.symbols.size();
+	unsigned n = pi->symbols.size();
 
 	struct tree_node * pn = tree_node_new(n);
 
-	pn->terminal = (unsigned)terminal(pi.head);
-	tree_node_set_head(pn, pi.head.type.c_str());
-	tree_node_set_value(pn, pi.head.value.c_str());
+	pn->terminal = (unsigned)terminal(pi->head);
+	tree_node_set_head(pn, pi->head.type.c_str());
+	tree_node_set_value(pn, pi->head.value.c_str());
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
@@ -327,7 +327,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	    ps = state_stack.back();
 	}
 
-	symbol_stack.push_back(pi.head);
+	symbol_stack.push_back(pi->head);
 
 	// Now build the tree node
 	for(unsigned i = n; i > 0; i--) {
@@ -339,7 +339,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	node_stack.push_back(pn);
 
 	if(verbose > 0) {
-	    std::cout << "reduce: " << pi.head.type << " -> ";
+	    std::cout << "reduce: " << pi->head.type << " -> ";
 
 	    // FIXME tree_node_dump_below(pn)
 	    // dump_tree_below(pn);
@@ -382,11 +382,11 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	parser_state * ns = new parser_state;
 
 	// Fill in the new state
-	build_items(pi.head, ps->kernel_items, ns->kernel_items);
-	build_items(pi.head, ps->nonkernel_items, ns->kernel_items);
+	build_items(pi->head, ps->kernel_items, ns->kernel_items);
+	build_items(pi->head, ps->nonkernel_items, ns->kernel_items);
 
 	if(ns->kernel_items.empty()) {
-	    std::cout << "no match for " << pi.head << '\n';
+	    std::cout << "no match for " << pi->head << '\n';
 	    return false;
 	}
 
@@ -419,7 +419,7 @@ void parser::run(std::istream & tin)
     std::list<std::vector<symbol> >::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); ++li) {
-	const parser_item & pi = make_item(start, *li, symbol("$"));
+	parser_item * pi = make_item(start, *li, symbol("$"));
 	ps->kernel_items.insert(pi);
     }
 
@@ -515,24 +515,24 @@ void parser::run(std::istream & tin)
     return;
 }
 
-void parser::check(const symbol & t, const std::set<parser_item> & l,
+void parser::check(const symbol & t, const std::set<parser_item *> & l,
 		   int & cs, int & cr, int & ca)
 {
-    std::set<parser_item>::const_iterator li;
+    std::set<parser_item *>::const_iterator li;
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); ++li) {
-	const parser_item & pi = *li;
+	const parser_item * pi = *li;
 
-	if(pi.index < pi.symbols.size()) {
+	if(pi->index < pi->symbols.size()) {
 	    // Not at the end of the item, so we should check for
 	    // shift conditions
 
-	    if(!terminal(pi.symbols[pi.index])) {
+	    if(!terminal(pi->symbols[pi->index])) {
 		continue;
 	    }
 
-	    if(t == pi.symbols[pi.index]) {
+	    if(t == pi->symbols[pi->index]) {
 		if(verbose > 1) {
 		    std::cout << "check: shift ";
 		    dump_item(pi);
@@ -544,7 +544,7 @@ void parser::check(const symbol & t, const std::set<parser_item> & l,
 	} else {
 	    // At the end of this item, check for valid reduce or accept
 
-	    if(pi.head == start) {
+	    if(pi->head == start) {
 		if(t == symbol("$")) {
 		    if(verbose > 1) {
 			std::cout << "check: accept ";
@@ -554,7 +554,7 @@ void parser::check(const symbol & t, const std::set<parser_item> & l,
 		    ca++;
 		}
 	    } else {
-		if(t == pi.terminal) {
+		if(t == pi->terminal) {
 		    if(verbose > 1) {
 			std::cout << "check: reduce ";
 			dump_item(pi);
@@ -569,43 +569,47 @@ void parser::check(const symbol & t, const std::set<parser_item> & l,
     return;
 }
 
-parser_item parser::make_item(const symbol & h, const std::vector<symbol> & b,
-			      const symbol & t)
+parser_item * parser::make_item(const symbol & h,
+				const std::vector<symbol> & b,
+				const symbol & t)
 {
-    parser_item pi;
+    parser_item * pi = new parser_item;
 
-    pi.head = h;
-    pi.symbols = b;
-    pi.index = 0;
-    pi.terminal = t;
+    pi->head = h;
+    pi->symbols = b;
+    pi->index = 0;
+    pi->terminal = t;
 
     return pi;
 }
 
 void parser::build_items(const symbol & t,
-			 const std::set<parser_item> & l,
-			 std::set<parser_item> & n)
+			 const std::set<parser_item *> & l,
+			 std::set<parser_item *> & n)
 {
-    std::set<parser_item>::const_iterator li;
+    std::set<parser_item *>::const_iterator li;
 
     stats.build_items_calls++;
 
     // For each item from the previous state...
     for(li = l.begin(); li != l.end(); ++li) {
-	const parser_item & pi = *li;
+	const parser_item * pi = *li;
 
-	if(pi.index >= pi.symbols.size()) {
+	if(pi->index >= pi->symbols.size()) {
 	    continue;
 	}
 
-	const symbol & s = pi.symbols[pi.index];
+	const symbol & s = pi->symbols[pi->index];
 
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
-	    parser_item ni = pi;
+	    parser_item * ni = new parser_item;
 
-	    ni.index++;
+	    // Copy the item
+	    *ni = *pi;
+
+	    ni->index++;
 
 	    // TODO can certain states be skipped?
 	    // 'token' is the next applicable token
@@ -737,12 +741,12 @@ bool parser::first(const symbol & h, std::set<symbol> & rs)
     return first(h, visited, rs);
 }
 
-void parser::first(const parser_item & pi, std::set<symbol> & rs)
+void parser::first(const parser_item * pi, std::set<symbol> & rs)
 {
-    unsigned size = pi.symbols.size();
+    unsigned size = pi->symbols.size();
 
-    for(unsigned i = pi.index + 1; i < size; i++) {
-	const symbol & s = pi.symbols[i];
+    for(unsigned i = pi->index + 1; i < size; i++) {
+	const symbol & s = pi->symbols[i];
 
 	if(first(s, rs)) {
 	    // If empty body was seen, we continue with this body
@@ -752,16 +756,16 @@ void parser::first(const parser_item & pi, std::set<symbol> & rs)
 	}
     }
 
-    rs.insert(pi.terminal);
+    rs.insert(pi->terminal);
 
     return;
 }
 
 void parser::closure(parser_state * ps)
 {
-    std::queue<parser_item> queue;
+    std::queue<parser_item *> queue;
 
-    std::set<parser_item>::const_iterator li;
+    std::set<parser_item *>::const_iterator li;
 
     stats.closure_calls++;
 
@@ -773,10 +777,10 @@ void parser::closure(parser_state * ps)
     while(!queue.empty()) {
 	stats.closure_loops++;
 
-	parser_item pi = queue.front();
+	parser_item * pi = queue.front();
 	queue.pop();
 
-	if(pi.index >= pi.symbols.size()) {
+	if(pi->index >= pi->symbols.size()) {
 	    continue;
 	}
 
@@ -785,7 +789,7 @@ void parser::closure(parser_state * ps)
 	    dump_item(pi);
 	}
 
-	const symbol & s = pi.symbols[pi.index];
+	const symbol & s = pi->symbols[pi->index];
 
 	if(terminal(s)) {
 	    continue;
@@ -804,15 +808,15 @@ void parser::closure(parser_state * ps)
 	if(verbose > 4) {
 	    std::cout << "closure: FIRST(";
 
-	    for(unsigned i = pi.index + 1; i < pi.symbols.size(); i++) {
-		if(terminal(pi.symbols[i])) {
-		    std::cout << pi.symbols[i] << ' ';
+	    for(unsigned i = pi->index + 1; i < pi->symbols.size(); i++) {
+		if(terminal(pi->symbols[i])) {
+		    std::cout << pi->symbols[i] << ' ';
 		} else {
-		    std::cout << pi.symbols[i].type << ' ';
+		    std::cout << pi->symbols[i].type << ' ';
 		}
 	    }
 
-	    std::cout << pi.terminal;
+	    std::cout << pi->terminal;
 
 	    dump_set("): ", rs);
 	}
@@ -848,7 +852,7 @@ void parser::closure(parser_state * ps)
 
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
-		parser_item pi2 = make_item(s, b, *si);
+		parser_item * pi2 = make_item(s, b, *si);
 
 		if(ps->nonkernel_items.count(pi2) > 0) {
 		    stats.closure_item_duplicates++;
@@ -1024,7 +1028,7 @@ void parser::dump(const char * msg)
 }
 
 void parser::dump_state(const parser_state * ps, unsigned spaces) {
-    std::set<parser_item>::const_iterator li;
+    std::set<parser_item *>::const_iterator li;
 
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
@@ -1032,7 +1036,7 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
 
     for(li = ps->kernel_items.begin();
 	li != ps->kernel_items.end(); ++li) {
-	const parser_item & pi = *li;
+	const parser_item * pi = *li;
 
 	dump_item(pi, spaces + 1);
     }
@@ -1044,7 +1048,7 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
 
 	for(li = ps->nonkernel_items.begin();
 	    li != ps->nonkernel_items.end(); ++li) {
-	    const parser_item & pi = *li;
+	    const parser_item * pi = *li;
 
 	    dump_item(pi, spaces + 1);
 	}
@@ -1053,33 +1057,33 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
     return;
 }
 
-void parser::dump_item(const parser_item & pi, unsigned spaces) {
+void parser::dump_item(const parser_item * pi, unsigned spaces) {
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
-    std::cout << pi.head.type << " -> ";
+    std::cout << pi->head.type << " -> ";
 
-    unsigned size = pi.symbols.size();
+    unsigned size = pi->symbols.size();
 
     for(unsigned i = 0; i < size; i++) {
-	if(i == pi.index) {
+	if(i == pi->index) {
 	    // Add the dot
 	    std::cout << ". ";
 	}
 
-	if(terminal(pi.symbols[i])) {
-	    std::cout << pi.symbols[i];
+	if(terminal(pi->symbols[i])) {
+	    std::cout << pi->symbols[i];
 	} else {
-	    std::cout << pi.symbols[i].type;
+	    std::cout << pi->symbols[i].type;
 	}
 
 	std::cout << " ";
     }
 
-    if(pi.index == size) {
+    if(pi->index == size) {
 	std::cout << ".";
     }
 
-    std::cout << " {" << pi.terminal.type << "}\n";
+    std::cout << " {" << pi->terminal.type << "}\n";
 
     return;
 }

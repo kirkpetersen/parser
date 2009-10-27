@@ -64,8 +64,8 @@ bool operator<(const parser_item & p1, const parser_item & p2);
 bool operator==(const parser_item & p1, const parser_item & p2);
 
 struct parser_state {
-    std::set<parser_item> kernel_items;
-    std::set<parser_item> nonkernel_items;
+    std::set<parser_item *> kernel_items;
+    std::set<parser_item *> nonkernel_items;
 };
 
 struct parser_stats {
@@ -120,7 +120,7 @@ public:
     void dump(const char * msg = NULL);
     void dump_grammar(void);
     void dump_state(const parser_state * ps, unsigned spaces = 0);
-    void dump_item(const parser_item & pi, unsigned spaces = 0);
+    void dump_item(const parser_item * pi, unsigned spaces = 0);
 
     struct tree_node * tree(void) {
 	return node_stack.back();
@@ -144,15 +144,15 @@ public:
 	}
     }
 
-    void check(const symbol & t, const std::set<parser_item> & l,
+    void check(const symbol & t, const std::set<parser_item *> & l,
 	       int & cs, int & cr, int & ca);
 
-    parser_item make_item(const symbol & h, const std::vector<symbol> & b,
-			  const symbol & t);
+    parser_item * make_item(const symbol & h, const std::vector<symbol> & b,
+			    const symbol & t);
 
     void build_items(const symbol & t,
-		     const std::set<parser_item> & l,
-		     std::set<parser_item> & n);
+		     const std::set<parser_item *> & l,
+		     std::set<parser_item *> & n);
 
     void shift(const parser_state * ps, const symbol & t);
 
@@ -163,11 +163,11 @@ public:
     bool first(const symbol & h, std::set<symbol> & rs);
     bool first(const symbol & h, std::set<symbol> & v,
 	       std::set<symbol> & rs);
-    void first(const parser_item & pi, std::set<symbol> & rs);
+    void first(const parser_item * pi, std::set<symbol> & rs);
 
     void check_shift(const std::string & t,
-		     const std::set<parser_item> &l1,
-		     std::set<parser_item> & l2);
+		     const std::set<parser_item *> & l1,
+		     std::set<parser_item *> & l2);
 
     symbol next_token(std::istream & tin);
 };
