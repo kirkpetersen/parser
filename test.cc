@@ -26,6 +26,7 @@ int test_empty2(void);
 int test_c(void);
 int test_lr1(void);
 int test_map(void);
+int test_ref(void);
 
 struct test {
     const char * name;
@@ -36,6 +37,7 @@ struct test {
     { "c", test_c },
     { "lr1", test_lr1 },
     { "map", test_map },
+    { "ref", test_ref },
     { NULL, NULL }
 };
 
@@ -160,6 +162,7 @@ int test_empty(void)
 
     rs.clear();
 
+#if 0
     {
 	vector<symbol> b(3);
 
@@ -188,6 +191,7 @@ int test_empty(void)
 	assert(rs.count("+") == 1);
 	assert(e == true);
     }
+#endif
 
     return 0;
 }
@@ -225,6 +229,7 @@ int test_empty2(void)
 
     rs.clear();
 
+#if 0
     {
 	vector<symbol> b(3);
 
@@ -238,6 +243,7 @@ int test_empty2(void)
 	assert(rs.count("b") == 1);
 	assert(e == false);
     }
+#endif
 
     return 0;
 }
@@ -294,6 +300,26 @@ int test_map(void)
     m["foo"] = false;
 
     assert(m.count("foo") > 0);
+
+    return 0;
+}
+
+std::string & test_ref2(void)
+{
+    static std::string x = "foo";
+
+    return x;
+}
+
+int test_ref(void)
+{
+    std::string & s = test_ref2();
+
+    if(s = test_ref2()) {
+	cout << "string: " << s << "\n";
+    } else {
+	cout << "empty\n";
+    }
 
     return 0;
 }

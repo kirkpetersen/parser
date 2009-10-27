@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,6 +16,10 @@
 #include <map>
 #include <queue>
 #include <set>
+
+extern "C" {
+#include "parser_c.h"
+}
 
 class symbol {
 public:
@@ -63,11 +68,6 @@ struct parser_state {
     std::set<parser_item> nonkernel_items;
 };
 
-struct tree_node {
-    symbol head;
-    std::list<tree_node> nodes;
-};
-
 struct parser_stats {
     unsigned build_item;
     unsigned loops;
@@ -91,7 +91,7 @@ class parser {
     std::deque<parser_state> state_stack;
     std::deque<symbol> symbol_stack;
 
-    std::deque<tree_node> node_stack;
+    std::deque<struct tree_node *> node_stack;
 
     std::set<symbol> tokens;
     std::set<symbol> literals;
@@ -104,6 +104,10 @@ public:
     parser(int v = 0) : start("START"), verbose(v) {
 	memset(&stats, 0, sizeof(stats));
     }
+
+    ~parser(void);
+
+    void build_rule(const std::string & head, ...);
 
     void bootstrap(void);
 
@@ -118,32 +122,19 @@ public:
     void dump_state(const parser_state & ps, unsigned spaces = 0);
     void dump_item(const parser_item & pi, unsigned spaces = 0);
 
-    void dump_tree(void) const;
-    void dump_tree_below(const tree_node & tn) const;
-    void dump_tree(const tree_node & tn, unsigned level = 0) const;
-
-    const tree_node & tree(void) const {
+    struct tree_node * tree(void) {
 	return node_stack.back();
     }
 
-    bool find_node(const tree_node & tn, const std::string & s,
-		   tree_node & t) const;
+    // FIXME tweak this...
+    struct tree_node * find_node(struct tree_node * tn, const std::string & s);
 
     void load(const char * filename);
 
-    void load_tokenizer(const tree_node & tn);
-    void load_token_line_list(const tree_node & tn);
-    void load_token_line(const tree_node & tn);
-    void load_token_list(const tree_node & tn);
+    void load_tokenizer(struct tree_node * tn);
 
-    void load_grammar(const tree_node & tn);
-    void load_production_list(const tree_node & tn);
-    void load_production(const tree_node & tn);
-    void load_body_list(const tree_node & tn,
-			std::list<std::vector<symbol> > & p);
-    void load_body(const tree_node & tn, std::vector<symbol> & b);
-    void load_symbol_list(const tree_node & tn, std::vector<symbol> & b);
-    void load_symbol(const tree_node & tn, std::vector<symbol> & b);
+    void load_grammar(struct tree_node * tn);
+    void load_production(struct tree_node * tn);
     
     bool terminal(const symbol & s) const {
 	if(productions.count(s.type) > 0) {

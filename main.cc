@@ -40,8 +40,7 @@ int main(int argc, char * argv[])
     // Now run the user's parser
     p.run(std::cin);
 
-    // Dump the tree
-    p.dump_tree();
+    tree_node_dump(p.tree(), 0);
 
     p.dump_stats();
 

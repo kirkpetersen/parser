@@ -1,0 +1,12 @@
+%token id num
+%start S
+%%
+
+S : E ';' S
+  | E
+  ;
+
+E : E '+' E
+  | num
+  | 'type' id { E : [2] }
+  ;

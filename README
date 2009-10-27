@@ -1,25 +1,25 @@
 Parser experiment
 
-A quick brain dump for now...
+This is a library to help users parse text. Given a grammar
+specification, it will generate a parser at runtime.
 
-This is a library to help users parse things.
-
-The parser supports LR(1) grammars.
+The parser supports LR(1) grammars. With the experimental support for
+extending the grammar from within files it is parsing, I suppose it
+probably supports more than just LR(1) grammars.
 
 Unlike tools like bison or yacc, this library will generate parsers at
 runtime. It will also allow the user to load a grammar and make
 modifications, including adding or removing productions from the
 grammar.
 
-Ideally, the syntax could be modified on the fly. This should be
-possible due to the fact that the parser states are created on demand,
-but I haven't gotten to that feature yet.
+The current version has experimental support for extending the syntax
+on the fly.
 
 Some possible uses I'm imagining:
 
 - user writes a small program to load a C grammar into the parser
-  generator, uses parser to syntax check files, doesn't need to load a
-  full compiler into memory
+  generator, uses parser to syntax check files, doesn't need to deal
+  with a full compiler
 
 - compiler writer uses parser generator library to load the grammar
   for the default language and then makes changes to the grammar based
@@ -36,7 +36,7 @@ Some possible uses I'm imagining:
     {
       # insert a new expression body, to be used immediately
       # (the semantics of this is to be defined elsewhere)
-      syntax-translate { E -> E ** E }
+      add-production { E -> E ** E }
 
       # use the new expression
       print 2 ** 16

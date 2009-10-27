@@ -6,7 +6,8 @@ S : E ';' S
   | E
   ;
 
-E : num '+' num
+E : E '+' E
+  | num
   | 'define' syntax
   ;
 

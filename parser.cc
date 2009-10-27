@@ -11,6 +11,26 @@
 
 #include "parser.hh"
 
+// C interface
+struct tree_node * parser_run(const char * grammar, const char * input)
+{
+    parser p;
+
+    p.load(grammar);
+
+    if(input) {
+	std::ifstream fs(input, std::fstream::in);
+
+	p.run(fs);
+
+	fs.close();
+    } else {
+	p.run(std::cin);
+    }
+
+    return p.tree();
+}
+
 std::ostream & operator<<(std::ostream & out, const symbol & s)
 {
     if(s.value.empty()) {
@@ -45,6 +65,43 @@ bool operator<(const parser_item & p1, const parser_item & p2)
     return false;
 }
 
+parser::~parser(void)
+{
+    struct tree_node * tn;
+
+    // FIXME there are more than one tree on the stack
+    tn = node_stack.front();
+    node_stack.pop_front();
+    tree_node_free(tn);
+
+    return;
+}
+
+void parser::build_rule(const std::string & head, ...)
+{
+    std::vector<symbol> body;
+    va_list ap;
+
+    // add to body with va_args
+    va_start(ap, head);
+
+    for(;;) {
+	const char * p = va_arg(ap, const char *);
+
+	if(!p) {
+	    break;
+	}
+
+	body.push_back(std::string(p));
+    }
+
+    va_end(ap);
+
+    productions[head].push_back(body);
+
+    return;
+}
+
 void parser::bootstrap()
 {
     tokens.insert(symbol("id"));
@@ -58,308 +115,127 @@ void parser::bootstrap()
     literals.insert(symbol("{"));
     literals.insert(symbol("}"));
 
-    std::vector<symbol> body;
-
     // Start production
-    body.push_back(symbol("tokenizer_and_grammar"));
-    productions[start].push_back(body);
+    build_rule(start, "tokenizer_and_grammar", 0);
 
-    body.clear();
+    build_rule("tokenizer_and_grammar", "tokenizer", "%%", "grammar", 0);
+    build_rule("tokenizer", "token_line_list", 0);
+    build_rule("token_line_list", "token_line", 0);
+    build_rule("token_line_list", "token_line", "token_line_list", 0);
+    build_rule("token_line", "%token", "token_list", 0);
+    build_rule("token_line", "%start", "id", 0);
+    build_rule("token_list", 0); // empty
+    build_rule("token_list", "id", "token_list", 0);
 
-    body.push_back(symbol("tokenizer"));
-    body.push_back(symbol("%%"));
-    body.push_back(symbol("grammar"));
-    productions["tokenizer_and_grammar"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("token_line_list"));
-    productions["tokenizer"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("token_line"));
-    productions["token_line_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("token_line"));
-    body.push_back(symbol("token_line_list"));
-    productions["token_line_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("%token"));
-    body.push_back(symbol("token_list"));
-    productions["token_line"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("%start"));
-    body.push_back(symbol("id"));
-    productions["token_line"].push_back(body);
-
-    body.clear();
-
-    // empty
-    productions["token_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("id"));
-    body.push_back(symbol("token_list"));
-    productions["token_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("production_list"));
-    productions["grammar"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("production"));
-    productions["production_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("production"));
-    body.push_back(symbol("production_list"));
-    productions["production_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("id"));
-    body.push_back(symbol(":"));
-    body.push_back(symbol("body_list"));
-    body.push_back(symbol(";"));
-    productions["production"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("body"));
-    productions["body_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("body"));
-    body.push_back(symbol("|"));
-    body.push_back(symbol("body_list"));
-    productions["body_list"].push_back(body);
-
-    body.clear();
-
-    // empty
-    productions["body_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("symbol_list"));
-    productions["body"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("symbol"));
-    productions["symbol_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("symbol"));
-    body.push_back(symbol("symbol_list"));
-    productions["symbol_list"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("id"));
-    productions["symbol"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("literal"));
-    productions["symbol"].push_back(body);
-
-    body.clear();
-
-    body.push_back(symbol("{"));
-    body.push_back(symbol("}"));
-    productions["symbol"].push_back(body);
+    build_rule("grammar", "production_list", 0);
+    build_rule("production_list", "production", ";", 0);
+    build_rule("production_list", "production", ";", "production_list", 0);
+    build_rule("production", "id", ":", "body_list", 0);
+    build_rule("body_list", "body", "action", 0);
+    build_rule("body_list", "body", "action", "|", "body_list", 0);
+    build_rule("body_list", 0); // empty
+    build_rule("body", "symbol_list", 0);
+    build_rule("symbol_list", "symbol", 0);
+    build_rule("symbol_list", "symbol", 0);
+    build_rule("symbol_list", "symbol", "symbol_list", 0);
+    build_rule("symbol", "id", 0);
+    build_rule("symbol", "literal", 0);
+    build_rule("symbol", "[", "num", "]", 0);
+    build_rule("action", "{", "production", "}", 0);
+    build_rule("action", "{", "}", 0);
+    build_rule("action", 0); // empty
 
     return;
 }
 
-bool parser::find_node(const tree_node & tn, const std::string & s,
-		       tree_node & t) const {
-    std::list<tree_node>::const_iterator ti;
-
-    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
-	const tree_node & tn2 = *ti;
-
-	if(s == tn2.head.type) {
-	    t = tn2;
-	    return true;
-	}
-    }
-
-    return false;
-}
-
-void parser::load_symbol(const tree_node & tn, std::vector<symbol> & b)
+void parser::load_tokenizer(struct tree_node * tn)
 {
-    tree_node i, l;
+    struct tree_node * tll = tn;
 
-    if(find_node(tn, "id", i)) {
-	b.push_back(symbol(i.head.value));
-    } else if(find_node(tn, "literal", l)) {
-	literals.insert(symbol(l.head.value));
-	b.push_back(symbol(l.head.value));
-    }
+    while((tll = tree_node_find(tll, "token_line_list"))) {
+	struct tree_node * line;
 
-    return;
-}
+	if((line = tree_node_find(tll, "token_line"))) {
+	    struct tree_node * x;
 
-void parser::load_symbol_list(const tree_node & tn, std::vector<symbol> & b)
-{
-    tree_node s, sl;
+	    if((x = tree_node_find(line, "%token"))) {
+		struct tree_node * tl = x;
 
-    if(find_node(tn, "symbol", s)) {
-	load_symbol(s, b);
-    }
+		while((tl = tree_node_find(tl, "token_list"))) {
+		    struct tree_node * id = tree_node_find(tl, "id");
+		    tokens.insert(symbol(id->value));
+		}
+	    } else if((x = tree_node_find(line, "%start"))) {
+		struct tree_node * s = tree_node_find(line, "id");
+		std::vector<symbol> body;
 
-    if(find_node(tn, "symbol_list", sl)) {
-	load_symbol_list(sl, b);
-    }
+		body.push_back(s->value);
 
-    return;
-}
-
-void parser::load_body(const tree_node & tn, std::vector<symbol> & b)
-{
-    tree_node sl;
-
-    if(find_node(tn, "symbol_list", sl)) {
-	load_symbol_list(sl, b);
-    }
-
-    return;
-}
-
-void parser::load_body_list(const tree_node & tn,
-			    std::list<std::vector<symbol> > & p)
-{
-    tree_node b, bl, pipe;
-
-    std::vector<symbol> body;
-
-    // Look for the body
-    if(find_node(tn, "body", b)) {
-	load_body(b, body);
-    }
-
-    // Either push the body or <empty> onto the production list
-    p.push_back(body);
-
-    // Continue with the body_list if there is one
-    if(find_node(tn, "body_list", bl)) {
-	load_body_list(bl, p);
-    }
-
-    return;
-}
-
-void parser::load_production(const tree_node & tn)
-{
-    tree_node id, bl;
-
-    if(find_node(tn, "id", id)) {
-	if(find_node(tn, "body_list", bl)) {
-	    load_body_list(bl, productions[id.head.value]);
+		productions[start].push_back(body);
+	    }
 	}
     }
 
     return;
 }
 
-void parser::load_production_list(const tree_node & tn)
+void parser::load_production(struct tree_node * tn)
 {
-    tree_node p, pl;
+    struct tree_node * id;
 
-    if(find_node(tn, "production", p)) {
+    if((id = tree_node_find(tn, "id"))) {
+	struct tree_node * bl = tn;
+
+	// load body list into productions[id.head.value]
+
+	while((bl = tree_node_find(bl, "body_list"))) {
+	    std::vector<symbol> b;
+	    struct tree_node * body = bl;
+
+	    while((body = tree_node_find(body, "body"))) {
+		struct tree_node * sl = body;
+		
+		while((sl = tree_node_find(sl, "symbol_list"))) {
+		    struct tree_node * s;
+
+		    if((s = tree_node_find(sl, "symbol"))) {
+			struct tree_node * x;
+
+			if((x = tree_node_find(s, "id"))) {
+			    b.push_back(x->value);
+			} else if((x = tree_node_find(s, "literal"))) {
+			    literals.insert(x->value);
+			    b.push_back(x->value);
+			} else if((x = tree_node_find(s, "num"))) {
+			    b.push_back(symbol("ref", x->value));
+			}
+			// action...
+		    }
+		}
+	    }
+
+	    productions[id->value].push_back(b);
+	}
+    }
+
+    return;
+}
+
+void parser::load_grammar(struct tree_node * tn)
+{
+    struct tree_node * p;
+
+    if((p = tree_node_find(tn, "production"))) {
 	load_production(p);
     }
 
-    if(find_node(tn, "production_list", pl)) {
-	load_production_list(pl);
-    }
+    struct tree_node * pl = tn;
 
-    return;
-}
-
-void parser::load_token_list(const tree_node & tn)
-{
-    tree_node id, tl;
-
-    if(find_node(tn, "id", id)) {
-	tokens.insert(symbol(id.head.value));
-    }
-
-    if(find_node(tn, "token_list", tl)) {
-	load_token_list(tl);
-    }
-
-    return;
-}
-
-void parser::load_token_line(const tree_node & tn)
-{
-    tree_node t, tl, s, ss;
-
-    if(find_node(tn, "%token", t)) {
-	if(find_node(tn, "token_list", tl)) {
-	    load_token_list(tl);
+    while((pl = tree_node_find(pl, "production_list"))) {
+	if((p = tree_node_find(pl, "production"))) {
+	    load_production(p);
 	}
     }
-
-    if(find_node(tn, "%start", s)) {
-	if(find_node(tn, "id", ss)) {
-	    std::vector<symbol> body;
-
-	    body.push_back(ss.head.value);
-
-	    productions[start].push_back(body);
-	}
-    }
-
-    return;
-}
-
-void parser::load_token_line_list(const tree_node & tn)
-{
-    tree_node tl, tll;
-
-    if(find_node(tn, "token_line", tl)) {
-	load_token_line(tl);
-    }
-
-    if(find_node(tn, "token_line_list", tll)) {
-	load_token_line_list(tll);
-    }
-
-    return;
-}
-
-void parser::load_tokenizer(const tree_node & tn)
-{
-    tree_node tll;
-
-    if(find_node(tn, "token_line_list", tll)) {
-	load_token_line_list(tn);
-    }
-
-    return;
-}
-
-void parser::load_grammar(const tree_node & tn)
-{
-    load_production_list(tn);
 
     return;
 }
@@ -378,9 +254,7 @@ void parser::load(const char * filename)
 
     bp.run(fs);
 
-#if 1
-    tree_node tg = bp.tree();
-#else
+#if 0
     tree_node tg, tn = bp.tree();
 
     // TODO fix this to work...
@@ -390,15 +264,15 @@ void parser::load(const char * filename)
     }
 #endif
 
-    std::list<tree_node>::const_iterator ti;
+    struct tree_node * tg = bp.tree();
 
-    tree_node t, g;
+    struct tree_node * t, * g;
 
-    if(find_node(tg, "tokenizer", t)) {
+    if((t = tree_node_find(tg, "tokenizer"))) {
 	load_tokenizer(t);
     }
 
-    if(find_node(tg, "grammar", g)) {
+    if((g = tree_node_find(tg, "grammar"))) {
 	load_grammar(g);
     }
 
@@ -428,20 +302,16 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	    continue;
 	}
 
-	symbol head = pi.head;
 	unsigned n = pi.symbols.size();
 
-	tree_node pn;
+	struct tree_node * pn = tree_node_new(n);
 
-	pn.head = head;
+	pn->terminal = (unsigned)terminal(pi.head);
+	tree_node_set_head(pn, pi.head.type.c_str());
+	tree_node_set_value(pn, pi.head.value.c_str());
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
-	    // Add to the tree
-	    pn.nodes.push_front(node_stack.back());
-
-	    node_stack.pop_back();
-
 	    symbol_stack.pop_back();
 
 	    // Pop this state off the stack
@@ -451,15 +321,22 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	    ps = state_stack.back();
 	}
 
-	symbol_stack.push_back(head);
+	symbol_stack.push_back(pi.head);
+
+	// Now build the tree node
+	for(unsigned i = n; i > 0; i--) {
+	    pn->nodes[i - 1] = node_stack.back();
+	    node_stack.pop_back();
+	}
 
 	// Push new tree node
 	node_stack.push_back(pn);
 
 	if(verbose > 0) {
-	    std::cout << "reduce: " << head.type << " -> ";
+	    std::cout << "reduce: " << pi.head.type << " -> ";
 
-	    dump_tree_below(pn);
+	    // FIXME tree_node_dump_below(pn)
+	    // dump_tree_below(pn);
 
 	    std::cout << '\n';
 
@@ -468,17 +345,19 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	    dump_item(pi);
 	}
 
-#if 1
+#if 0
 	// FIXME
+	// Replace this with generic handling of grammar actions
+	//
 	// experiment with syntax definition
 	// this is probably where post actions would fire...
 	if(head.type == "syntax") {
 	    const tree_node & sn = node_stack.back();
-	    tree_node h, sl;
+	    tree_node h;
 
 	    std::cout << "SYNTAX!\n";
 
-	    if(find_node(sn, "id", h)) {
+	    if(h = find_node(sn, "id")) {
 		std::cout << "head: " << h.head << '\n';
 	    }
 
@@ -497,11 +376,11 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	parser_state ns;
 
 	// Fill in the new state
-	build_items(head, ps.kernel_items, ns.kernel_items);
-	build_items(head, ps.nonkernel_items, ns.kernel_items);
+	build_items(pi.head, ps.kernel_items, ns.kernel_items);
+	build_items(pi.head, ps.nonkernel_items, ns.kernel_items);
 
 	if(ns.kernel_items.empty()) {
-	    std::cout << "no match for " << head << '\n';
+	    std::cout << "no match for " << pi.head << '\n';
 	    return false;
 	}
 
@@ -774,13 +653,13 @@ void parser::shift(const parser_state & ps, const symbol & t)
     state_stack.push_back(ns);
 
     // New node for this symbol
-    {
-	tree_node tn;
+    struct tree_node * tn = tree_node_new(0);
 
-	tn.head = t;
+    tn->terminal = (unsigned)terminal(t);
+    tree_node_set_head(tn, t.type.c_str());
+    tree_node_set_value(tn, t.value.c_str());
 
-	node_stack.push_back(tn);
-    }
+    node_stack.push_back(tn);
 
     return;
 }
@@ -1131,7 +1010,7 @@ void parser::dump(const char * msg)
 	std::cout << " parse tree:\n";
 
 	if(node_stack.size() > 0) {
-	    dump_tree(node_stack.back());
+	    tree_node_dump(node_stack.back(), 2);
 	}
     }
 
@@ -1193,47 +1072,6 @@ void parser::dump_item(const parser_item & pi, unsigned spaces) {
     }
 
     std::cout << " {" << pi.terminal.type << "}\n";
-
-    return;
-}
-
-void parser::dump_tree(void) const
-{
-    if(!node_stack.empty()) {
-	dump_tree(node_stack.back());
-    }
-
-    return;
-}
-
-void parser::dump_tree_below(const tree_node & tn) const
-{
-    if(terminal(tn.head)) {
-	std::cout << tn.head.value << " ";
-    }
-
-    std::list<tree_node>::const_iterator ti;
-
-    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
-	dump_tree_below(*ti);
-    }
-
-    return;
-}
-
-void parser::dump_tree(const tree_node & tn, unsigned level) const
-{
-    for(unsigned i = 0; i < level; i++) { std::cout << ' '; }
-
-    dump_tree_below(tn);
-
-    std::cout << " <- " << tn.head << '\n';
-
-    std::list<tree_node>::const_iterator ti;
-
-    for(ti = tn.nodes.begin(); ti != tn.nodes.end(); ++ti) {
-	dump_tree(*ti, level + 1);
-    }
 
     return;
 }
