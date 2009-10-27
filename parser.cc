@@ -12,6 +12,7 @@
 #include "parser.hh"
 
 // C interface
+
 struct tree_node * parser_run(const char * grammar, const char * input)
 {
     parser p;
@@ -30,6 +31,8 @@ struct tree_node * parser_run(const char * grammar, const char * input)
 
     return p.tree();
 }
+
+// C++ code
 
 std::ostream & operator<<(std::ostream & out, const symbol & s)
 {
@@ -64,6 +67,8 @@ bool operator<(const parser_item & p1, const parser_item & p2)
 
     return false;
 }
+
+// parser
 
 parser::~parser(void)
 {

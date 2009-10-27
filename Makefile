@@ -3,7 +3,7 @@
 CPPFLAGS = -Wall -Werror -g
 LDFLAGS = 
 
-all:	parser
+all:	parser cparser test
 
 popt:	parser.popt
 
@@ -22,7 +22,7 @@ parser.po:	parser.cc parser.hh
 main.po:	main.cc parser.hh
 	g++ $(CPPFLAGS) -o $@ -c $<
 
-test:	test.o parser.o
+test:	test.o parser.o tree_node.o
 	g++ $(LDFLAGS) -o $@ $^
 
 parser:	main.o parser.o tree_node.o
