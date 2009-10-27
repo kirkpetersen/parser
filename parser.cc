@@ -286,9 +286,10 @@ void parser::load(const char * filename)
     return;
 }
 
-bool parser::reduce(parser_state & ps, const symbol & t, bool k)
+bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 {
-    const std::set<parser_item> & items = k ? ps.kernel_items : ps.nonkernel_items;
+    const std::set<parser_item> & items = k ? ps->kernel_items : ps->nonkernel_items;
+
     std::set<parser_item>::const_iterator ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
@@ -378,13 +379,13 @@ bool parser::reduce(parser_state & ps, const symbol & t, bool k)
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
-	parser_state ns;
+	parser_state * ns = new parser_state;
 
 	// Fill in the new state
-	build_items(pi.head, ps.kernel_items, ns.kernel_items);
-	build_items(pi.head, ps.nonkernel_items, ns.kernel_items);
+	build_items(pi.head, ps->kernel_items, ns->kernel_items);
+	build_items(pi.head, ps->nonkernel_items, ns->kernel_items);
 
-	if(ns.kernel_items.empty()) {
+	if(ns->kernel_items.empty()) {
 	    std::cout << "no match for " << pi.head << '\n';
 	    return false;
 	}
@@ -413,13 +414,13 @@ void parser::run(std::istream & tin)
     }
 
     // Create the initial parser state
-    parser_state ps;
+    parser_state * ps = new parser_state;
 
     std::list<std::vector<symbol> >::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); ++li) {
 	const parser_item & pi = make_item(start, *li, symbol("$"));
-	ps.kernel_items.insert(pi);
+	ps->kernel_items.insert(pi);
     }
 
     if(verbose > 2) {
@@ -454,8 +455,8 @@ void parser::run(std::istream & tin)
 	int cs = 0, cr = 0, ca = 0;
 
 	// Check for shift, reduce, or accept conditions
-	check(token, ps.kernel_items, cs, cr, ca);
-	check(token, ps.nonkernel_items, cs, cr, ca);
+	check(token, ps->kernel_items, cs, cr, ca);
+	check(token, ps->nonkernel_items, cs, cr, ca);
 
 	stats.shifts += cs;
 	stats.reduces += cr;
@@ -630,19 +631,19 @@ void parser::build_items(const symbol & t,
     return;
 }
 
-void parser::shift(const parser_state & ps, const symbol & t)
+void parser::shift(const parser_state * ps, const symbol & t)
 {
-    parser_state ns;
+    parser_state * ns = new parser_state;
 
     if(verbose > 0) {
 	std::cout << "shifting " << t << '\n';
     }
 
     // Fill in the new state
-    build_items(t, ps.kernel_items, ns.kernel_items);
-    build_items(t, ps.nonkernel_items, ns.kernel_items);
+    build_items(t, ps->kernel_items, ns->kernel_items);
+    build_items(t, ps->nonkernel_items, ns->kernel_items);
 
-    if(ns.kernel_items.empty()) {
+    if(ns->kernel_items.empty()) {
 	std::cout << "no match for token " << t << '\n';
 	return;
     }
@@ -756,7 +757,7 @@ void parser::first(const parser_item & pi, std::set<symbol> & rs)
     return;
 }
 
-void parser::closure(parser_state & ps)
+void parser::closure(parser_state * ps)
 {
     std::queue<parser_item> queue;
 
@@ -765,7 +766,7 @@ void parser::closure(parser_state & ps)
     stats.closure_calls++;
 
     // Push kernel items onto queue
-    for(li = ps.kernel_items.begin(); li != ps.kernel_items.end(); ++li) {
+    for(li = ps->kernel_items.begin(); li != ps->kernel_items.end(); ++li) {
 	queue.push(*li);
     }
 
@@ -849,7 +850,7 @@ void parser::closure(parser_state & ps)
 	    for(si = rs.begin(); si != rs.end(); ++si) {
 		parser_item pi2 = make_item(s, b, *si);
 
-		if(ps.nonkernel_items.count(pi2) > 0) {
+		if(ps->nonkernel_items.count(pi2) > 0) {
 		    stats.closure_item_duplicates++;
 		    if(verbose > 4) {
 			std::cout << "dup: ";
@@ -868,7 +869,7 @@ void parser::closure(parser_state & ps)
 		stats.closure_item_non_duplicates++;
 
 		// add [B -> . y, b] to set I
-		ps.nonkernel_items.insert(pi2);
+		ps->nonkernel_items.insert(pi2);
 	    }
 	}
     }
@@ -985,7 +986,7 @@ void parser::dump(const char * msg)
 	}
     }
 
-    std::deque<parser_state>::const_iterator st;
+    std::deque<parser_state *>::const_iterator st;
 
     unsigned sn = 0;
 
@@ -993,7 +994,7 @@ void parser::dump(const char * msg)
 	std::cout << " state stack:\n";
 
 	for(st = state_stack.begin(); st != state_stack.end(); ++st) {
-	    const parser_state & ps = *st;
+	    const parser_state * ps = *st;
 
 	    std::cout << "  state " << sn++ << '\n';
 
@@ -1003,7 +1004,7 @@ void parser::dump(const char * msg)
 	std::cout << " state stack (kernel items of top state only):\n";
 
 	if(!state_stack.empty()) {
-	    const parser_state & ps = state_stack.back();
+	    const parser_state * ps = state_stack.back();
 
 	    std::cout << "  state " << state_stack.size() - 1 << '\n';
 
@@ -1022,14 +1023,15 @@ void parser::dump(const char * msg)
     return;
 }
 
-void parser::dump_state(const parser_state & ps, unsigned spaces) {
+void parser::dump_state(const parser_state * ps, unsigned spaces) {
     std::set<parser_item>::const_iterator li;
 
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
     std::cout << "kernel items:\n";
 
-    for(li = ps.kernel_items.begin(); li != ps.kernel_items.end(); ++li) {
+    for(li = ps->kernel_items.begin();
+	li != ps->kernel_items.end(); ++li) {
 	const parser_item & pi = *li;
 
 	dump_item(pi, spaces + 1);
@@ -1040,7 +1042,8 @@ void parser::dump_state(const parser_state & ps, unsigned spaces) {
 
 	std::cout << "nonkernel items:\n";
 
-	for(li = ps.nonkernel_items.begin(); li != ps.nonkernel_items.end(); ++li) {
+	for(li = ps->nonkernel_items.begin();
+	    li != ps->nonkernel_items.end(); ++li) {
 	    const parser_item & pi = *li;
 
 	    dump_item(pi, spaces + 1);

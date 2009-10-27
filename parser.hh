@@ -88,7 +88,7 @@ class parser {
 
     std::map<std::string, std::list<std::vector<symbol> > > productions;
 
-    std::deque<parser_state> state_stack;
+    std::deque<parser_state *> state_stack;
     std::deque<symbol> symbol_stack;
 
     std::deque<struct tree_node *> node_stack;
@@ -119,7 +119,7 @@ public:
 
     void dump(const char * msg = NULL);
     void dump_grammar(void);
-    void dump_state(const parser_state & ps, unsigned spaces = 0);
+    void dump_state(const parser_state * ps, unsigned spaces = 0);
     void dump_item(const parser_item & pi, unsigned spaces = 0);
 
     struct tree_node * tree(void) {
@@ -154,11 +154,11 @@ public:
 		     const std::set<parser_item> & l,
 		     std::set<parser_item> & n);
 
-    void shift(const parser_state & ps, const symbol & t);
+    void shift(const parser_state * ps, const symbol & t);
 
-    bool reduce(parser_state & ps, const symbol & t, bool k = true);
+    bool reduce(parser_state * ps, const symbol & t, bool k = true);
 
-    void closure(parser_state & ps);
+    void closure(parser_state * ps);
 
     bool first(const symbol & h, std::set<symbol> & rs);
     bool first(const symbol & h, std::set<symbol> & v,
