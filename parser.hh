@@ -71,6 +71,7 @@ struct parser_state {
 
 struct parser_stats {
     unsigned build_item;
+    unsigned build_item_skips;
     unsigned loops;
     unsigned shifts;
     unsigned reduces;
@@ -80,6 +81,7 @@ struct parser_stats {
     unsigned closure_loops;
     unsigned closure_item_duplicates;
     unsigned closure_item_non_duplicates;
+    unsigned closure_skips;
 };
 
 struct parser_rule {
@@ -118,15 +120,6 @@ public:
     void bootstrap(void);
 
     void run(std::istream & tin);
-
-    void dump_stats(void);
-
-    void dump_set(const char * msg, const std::set<symbol> & rs);
-
-    void dump(const char * msg = NULL);
-    void dump_grammar(void);
-    void dump_state(const parser_state * ps, unsigned spaces = 0);
-    void dump_item(const parser_item * pi, unsigned spaces = 0);
 
     struct tree_node * tree(void) {
 	return node_stack.back();
@@ -172,11 +165,21 @@ public:
     bool first(const symbol & h, std::set<symbol> & rs);
     bool first(const symbol & h, std::set<symbol> & v,
 	       std::set<symbol> & rs);
-    void first(const parser_item * pi, std::set<symbol> & rs);
+    void first(const parser_item * pi, unsigned idx, std::set<symbol> & rs);
 
     void check_shift(const std::string & t,
 		     const std::set<parser_item *> & l1,
 		     std::set<parser_item *> & l2);
 
     symbol next_token(std::istream & tin);
+
+    // All of these are in dump.cc
+    void dump_stats(void);
+
+    void dump_set(const char * msg, const std::set<symbol> & rs);
+
+    void dump(const char * msg = NULL);
+    void dump_grammar(void);
+    void dump_state(const parser_state * ps, unsigned spaces = 0);
+    void dump_item(const parser_item * pi, unsigned spaces = 0);
 };

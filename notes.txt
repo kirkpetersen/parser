@@ -1,6 +1,8 @@
 Parser notes
 
 TODO
+- FIRST() caching?
+
 - state caching
   - instead of (symbol,state) -> state mapping, need to build the
     kernel items and do a kernel -> state mapping

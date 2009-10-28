@@ -2,9 +2,9 @@
 
 CPPFLAGS = -Wall -Werror -g
 CFLAGS = -Wall -Werror -g
-LDFLAGS = 
+LDFLAGS = -pg
 
-all:	parser test parser.opt
+all:	parser test
 
 %.o : CPPFLAGS += -pg
 %.o : CFLAGS += -pg

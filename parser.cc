@@ -364,6 +364,9 @@ void parser::run(std::istream & tin)
 	return;
     }
 
+    // Get the first token immediately
+    token = next_token(tin);
+
     // Create the initial parser state
     parser_state * ps = new parser_state;
 
@@ -383,9 +386,6 @@ void parser::run(std::istream & tin)
     state_stack.push_back(ps);
 
     unsigned loop = 0;
-
-    // Get the first token
-    token = next_token(tin);
 
     for(;;) {
 	stats.loops++;
@@ -556,21 +556,32 @@ void parser::build_items(const symbol & t,
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
+#if 1
+	    // Is this cost effective?  Does it mess anything up?
+	    if(pi->index < pi->symbols.size() - 1) {
+		std::set<symbol> rs;
+
+		first(pi, pi->index + 1, rs);
+
+		if(rs.count(token) == 0) {
+		    if(verbose > 4) {
+			std::cout << "skipping item [token " << token << "]: ";
+			dump_item(pi);
+		    }
+
+		    stats.build_item_skips++;
+
+		    continue;
+		}
+	    }
+#endif
+
 	    parser_item * ni = new parser_item;
 
 	    // Copy the item
 	    *ni = *pi;
 
 	    ni->index++;
-
-	    // TODO can certain states be skipped?
-	    // 'token' is the next applicable token
-	    // if new item is [ A -> /a/ X . /B/ , a ]
-	    // if ni.symbols[ni.index] is terminal but doesn't
-	    // match token, skip it
-	    //
-	    // or would FIRST(/B/ a) be worth it, to eliminate all
-	    // items? does that change the algorithm?
 
 	    if(verbose > 2) {
 		std::cout << "building new item: ";
@@ -678,11 +689,11 @@ bool parser::first(const symbol & h, std::set<symbol> & rs)
     return first(h, visited, rs);
 }
 
-void parser::first(const parser_item * pi, std::set<symbol> & rs)
+void parser::first(const parser_item * pi, unsigned idx, std::set<symbol> & rs)
 {
     unsigned size = pi->symbols.size();
 
-    for(unsigned i = pi->index + 1; i < size; i++) {
+    for(unsigned i = idx; i < size; i++) {
 	const symbol & s = pi->symbols[i];
 
 	if(first(s, rs)) {
@@ -721,6 +732,27 @@ void parser::closure(parser_state * ps)
 	    continue;
 	}
 
+#if 1
+	// Another possible optimization by comparing next symbol in
+	// the item against the upcoming token
+	{
+	    std::set<symbol> rs0;
+
+	    first(pi, pi->index, rs0);
+
+	    if(rs0.count(token) == 0) {
+		if(verbose > 4) {
+		    std::cout << "closure: skipping item [token " << token << "]: ";
+		    dump_item(pi);
+		}
+
+		stats.closure_skips++;
+
+		continue;
+	    }
+	}
+#endif
+
 	if(verbose > 4) {
 	    std::cout << "closing item: ";
 	    dump_item(pi);
@@ -739,8 +771,9 @@ void parser::closure(parser_state * ps)
 
 	std::set<symbol> rs;
 
-	// FIRST(/B/ a)
-	first(pi, rs);
+	// FIRST() after the current symbol in the item
+	// Given [ A -> /a/ . X /B/ , a ], find FIRST(/B/ a)
+	first(pi, pi->index + 1, rs);
 
 	if(verbose > 4) {
 	    std::cout << "closure: FIRST(";

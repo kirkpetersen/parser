@@ -31,6 +31,7 @@ void parser::dump_stats(void)
 {
     std::cout << "parser stats:\n";
     std::cout << "build item: " << stats.build_item << '\n';
+    std::cout << "build item skips: " << stats.build_item_skips << '\n';
     std::cout << "loops: " << stats.loops << '\n';
     std::cout << "shifts: " << stats.shifts << '\n';
     std::cout << "reduces: " << stats.reduces << '\n';
@@ -40,6 +41,7 @@ void parser::dump_stats(void)
     std::cout << "closure_loops: " << stats.closure_loops << '\n';
     std::cout << "closure_item_duplicates: " << stats.closure_item_duplicates << '\n';
     std::cout << "closure_item_non_duplicates: " << stats.closure_item_non_duplicates << '\n';
+    std::cout << "closure_skips: " << stats.closure_skips << '\n';
 
     return;
 }
