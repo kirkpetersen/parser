@@ -286,6 +286,29 @@ void parser::load(const char * filename)
     return;
 }
 
+parser_state * parser::sr(parser_state * ps, const symbol & t)
+{
+    // TODO build a temporary set of kernel items first and look them
+    // up in the (kernel items -> state cache) if they exist, we can
+    // skip the closure() step, which takes 50% of the time
+
+    parser_state * ns = new parser_state;
+
+    // Fill in the new state
+    build_items(t, ps->kernel_items, ns->kernel_items);
+    build_items(t, ps->nonkernel_items, ns->kernel_items);
+
+    assert(!ns->kernel_items.empty());
+
+    if(verbose > 2) {
+	std::cout << "closure post shift\n";
+    }
+
+    closure(ns);
+
+    return ns;
+}
+
 bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 {
     const std::set<parser_item *, parser_item_compare> & items = k ? ps->kernel_items : ps->nonkernel_items;
@@ -379,22 +402,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
-	parser_state * ns = new parser_state;
-
-	// Fill in the new state
-	build_items(pi->head, ps->kernel_items, ns->kernel_items);
-	build_items(pi->head, ps->nonkernel_items, ns->kernel_items);
-
-	if(ns->kernel_items.empty()) {
-	    std::cout << "no match for " << pi->head << '\n';
-	    return false;
-	}
-
-	if(verbose > 2) {
-	    std::cout << "closure post reduce\n";
-	}
-
-	closure(ns);
+	parser_state * ns = sr(ps, pi->head);
 
 	state_stack.push_back(ns);
 
@@ -636,32 +644,13 @@ void parser::build_items(const symbol & t,
     return;
 }
 
-void parser::shift(const parser_state * ps, const symbol & t)
+void parser::shift(parser_state * ps, const symbol & t)
 {
-    parser_state * ns = new parser_state;
-
     if(verbose > 0) {
 	std::cout << "shifting " << t << '\n';
     }
 
-    // Fill in the new state
-    build_items(t, ps->kernel_items, ns->kernel_items);
-    build_items(t, ps->nonkernel_items, ns->kernel_items);
-
-    if(ns->kernel_items.empty()) {
-	std::cout << "no match for token " << t << '\n';
-	return;
-    }
-
-    if(verbose > 2) {
-	std::cout << "closure post shift\n";
-    }
-
-    closure(ns);
-
-    // Finish up shifting
     symbol_stack.push_back(t);
-    state_stack.push_back(ns);
 
     // New node for this symbol
     struct tree_node * tn = tree_node_new(0);
@@ -670,6 +659,10 @@ void parser::shift(const parser_state * ps, const symbol & t)
     tree_node_set_head(tn, t.type.c_str());
     tree_node_set_value(tn, t.value.c_str());
 
+    parser_state * ns = sr(ps, t);
+
+    // Finish up shifting
+    state_stack.push_back(ns);
     node_stack.push_back(tn);
 
     return;

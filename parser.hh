@@ -189,9 +189,11 @@ public:
 		     const std::set<parser_item *, parser_item_compare> & l,
 		     std::set<parser_item *, parser_item_compare> & n);
 
-    void shift(const parser_state * ps, const symbol & t);
-
+    void shift(parser_state * ps, const symbol & t);
     bool reduce(parser_state * ps, const symbol & t, bool k = true);
+
+    // Helper function for shift and reduce
+    parser_state * sr(parser_state * ps, const symbol & t);
 
     void closure(parser_state * ps);
 
