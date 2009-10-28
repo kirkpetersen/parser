@@ -60,36 +60,8 @@ struct parser_item {
     symbol terminal;
 };
 
-bool operator<(const parser_item & p1, const parser_item & p2);
-bool operator==(const parser_item & p1, const parser_item & p2);
-
 struct parser_item_compare {
-    bool operator()(const parser_item * p1, const parser_item * p2) const {
-	const bool i = p1->index == p2->index;
-
-	if(i) {
-	    const bool h = p1->head == p2->head;
-
-	    if(h) {
-		const bool s = p1->symbols == p2->symbols;
-
-		if(s) {
-		    if(p1->terminal < p2->terminal) {
-			return true;
-		    }
-
-		} else if(p1->symbols < p2->symbols) {
-		    return true;
-		}
-	    } else if(p1->head < p2->head) {
-		return true;
-	    }
-	} else if(p1->index < p2->index) {
-	    return true;
-	}
-
-	return false;
-    }
+    bool operator()(const parser_item * p1, const parser_item * p2) const;
 };
 
 struct parser_state {
