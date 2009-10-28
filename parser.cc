@@ -17,10 +17,22 @@ parser::~parser(void)
 {
     struct tree_node * tn;
 
-    // FIXME there are more than one tree on the stack
     tn = node_stack.front();
     node_stack.pop_front();
+
+    assert(node_stack.empty());
+
     tree_node_free(tn);
+
+    std::map<std::string, std::list<parser_rule *> >::const_iterator pi;
+
+    for(pi = productions.begin(); pi != productions.end(); ++pi) {
+	std::list<parser_rule *>::const_iterator li;
+
+	for(li = pi->second.begin(); li != pi->second.end(); ++li) {
+	    delete (*li);
+	}
+    }
 
     return;
 }
@@ -52,16 +64,16 @@ void parser::build_rule(const std::string & head, ...)
 
 void parser::bootstrap()
 {
-    tokens.insert(symbol("id"));
-    tokens.insert(symbol("literal"));
+    tokens.insert("id");
+    tokens.insert("literal");
 
-    literals.insert(symbol("%%"));
-    literals.insert(symbol("%token"));
-    literals.insert(symbol(":"));
-    literals.insert(symbol(";"));
-    literals.insert(symbol("|"));
-    literals.insert(symbol("{"));
-    literals.insert(symbol("}"));
+    literals.insert("%%");
+    literals.insert("%token");
+    literals.insert(":");
+    literals.insert(";");
+    literals.insert("|");
+    literals.insert("{");
+    literals.insert("}");
 
     // Start production
     build_rule(start, "tokenizer_and_grammar", 0);
@@ -111,7 +123,7 @@ void parser::load_tokenizer(struct tree_node * tn)
 
 		while((tl = tree_node_find(tl, "token_list"))) {
 		    struct tree_node * id = tree_node_find(tl, "id");
-		    tokens.insert(symbol(id->value));
+		    tokens.insert(id->value);
 		}
 	    } else if((x = tree_node_find(line, "%start"))) {
 		struct tree_node * s = tree_node_find(line, "id");
@@ -134,7 +146,7 @@ void parser::load_production(struct tree_node * tn)
     if((id = tree_node_find(tn, "id"))) {
 	struct tree_node * bl = tn;
 
-	// load body list into productions[id.head.value]
+	// load body list into productions[id.head]
 
 	while((bl = tree_node_find(bl, "body_list"))) {
 	    parser_rule * rule = new parser_rule;
@@ -200,17 +212,13 @@ void parser::load(const char * filename)
 
     bp.run(fs);
 
-#if 0
-    tree_node tg, tn = bp.tree();
+    struct tree_node * tg, * tn = bp.tree();
 
-    // TODO fix this to work...
-    if(!find_node(tn, "tokenizer_and_grammar", tg)) {
-	std::cerr << "invalid grammar\n";
+    tg = tree_node_find(tn, "tokenizer_and_grammar");
+    if(!tg) {
+	std::cerr << "invalid grammar: " << tn->head << "\n";
 	return;
     }
-#endif
-
-    struct tree_node * tg = bp.tree();
 
     struct tree_node * t, * g;
 
@@ -227,7 +235,7 @@ void parser::load(const char * filename)
     return;
 }
 
-parser_state * parser::sr(parser_state * ps, const symbol & t)
+parser_state * parser::sr(parser_state * ps, const std::string & t)
 {
     // TODO build a temporary set of kernel items first and look them
     // up in the (kernel items -> state cache) if they exist, we can
@@ -250,10 +258,11 @@ parser_state * parser::sr(parser_state * ps, const symbol & t)
     return ns;
 }
 
-bool parser::reduce(parser_state * ps, const symbol & t, bool k)
+bool parser::reduce(parser_state * ps,
+		    const std::string & t, const std::string & tv,
+		    std::set<parser_item *, parser_item_compare> & items,
+		    bool noshift)
 {
-    const std::set<parser_item *, parser_item_compare> & items = k ? ps->kernel_items : ps->nonkernel_items;
-
     std::set<parser_item *, parser_item_compare>::const_iterator ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
@@ -277,15 +286,17 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	struct tree_node * pn = tree_node_new(n);
 
 	pn->terminal = (unsigned)terminal(pi->head);
-	tree_node_set_head(pn, pi->head.type.c_str());
-	tree_node_set_value(pn, pi->head.value.c_str());
+	tree_node_set_head(pn, pi->head.c_str());
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
 	    symbol_stack.pop_back();
 
 	    // Pop this state off the stack
+	    parser_state * temp = state_stack.back();
 	    state_stack.pop_back();
+	    // FIXME need to free all of the items
+	    delete temp;
 
 	    // Set the current state to the previous
 	    ps = state_stack.back();
@@ -303,7 +314,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	node_stack.push_back(pn);
 
 	if(verbose > 0) {
-	    std::cout << "reduce: " << pi->head.type << " -> ";
+	    std::cout << "reduce: " << pi->head << " -> ";
 
 	    // FIXME tree_node_dump_below(pn)
 	    // dump_tree_below(pn);
@@ -315,13 +326,17 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	    dump_item(pi);
 	}
 
+	if(noshift) {
+	    return true;
+	}
+
 #if 0
 	// FIXME
 	// Replace this with generic handling of grammar actions
 	//
 	// experiment with syntax definition
 	// this is probably where post actions would fire...
-	if(head.type == "syntax") {
+	if(head == "syntax") {
 	    const tree_node & sn = node_stack.back();
 	    tree_node h;
 
@@ -336,7 +351,7 @@ bool parser::reduce(parser_state * ps, const symbol & t, bool k)
 	    // This should do the trick...
 	    load_body(sn, rule->symbols);
 
-	    productions[h.head.value].push_back(rule);
+	    productions[h.head].push_back(rule);
 	}
 #endif
 
@@ -363,7 +378,7 @@ void parser::run(std::istream & tin)
     }
 
     // Get the first token immediately
-    token = next_token(tin);
+    next_token(tin);
 
     // Create the initial parser state
     parser_state * ps = new parser_state;
@@ -371,7 +386,7 @@ void parser::run(std::istream & tin)
     std::list<parser_rule *>::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); ++li) {
-	parser_item * pi = make_item(start, (*li)->symbols, symbol("$"));
+	parser_item * pi = make_item(start, (*li)->symbols, "$");
 	ps->kernel_items.insert(pi);
     }
 
@@ -390,8 +405,8 @@ void parser::run(std::istream & tin)
 
 	if(verbose > 0) {
 	    std::cout << "LOOP: " << loop++
-		      << ", token: " << token.type
-		      << ", token_value: " << token.value
+		      << ", token: " << token
+		      << ", token_value: " << token_value
 		      << '\n';
 
 	    std::cout.flush();
@@ -428,20 +443,24 @@ void parser::run(std::istream & tin)
 	}
 
 	if(ca > 0) {
+	    // One final reduce of the parse tree
+	    reduce(ps, token, token_value, ps->kernel_items, true);
+
 	    break;
 	} else if(cs > 0) {
-	    symbol old = token;
+	    std::string old = token;
+	    std::string old_value = token_value;
 
 	    // Grab the next token now
 	    // This might help us optimize creation of states/items
-	    token = next_token(tin);
+	    next_token(tin);
 
-	    shift(ps, old);
+	    shift(ps, old, old_value);
 
 	    // Set the current state to the one shift() created
 	    ps = state_stack.back();
 	} else if(cr > 0) {
-	    bool match = reduce(ps, token);
+	    bool match = reduce(ps, token, token_value, ps->kernel_items);
 
 	    // Only check nonkernel items if there isn't a match with
 	    // the kernel items. Most reduces are in the kernel items.
@@ -450,7 +469,7 @@ void parser::run(std::istream & tin)
 		    std::cout << "checking nonkernel items for reduce\n";
 		}
 
-		reduce(ps, token, false);
+		reduce(ps, token, token_value, ps->nonkernel_items);
 	    }
 
 	    ps = state_stack.back();
@@ -464,7 +483,7 @@ void parser::run(std::istream & tin)
     return;
 }
 
-void parser::check(const symbol & t,
+void parser::check(const std::string & t,
 		   const std::set<parser_item *, parser_item_compare> & l,
 		   int & cs, int & cr, int & ca)
 {
@@ -495,7 +514,7 @@ void parser::check(const symbol & t,
 	    // At the end of this item, check for valid reduce or accept
 
 	    if(pi->head == start) {
-		if(t == symbol("$")) {
+		if(t == "$") {
 		    if(verbose > 1) {
 			std::cout << "check: accept ";
 			dump_item(pi);
@@ -519,9 +538,9 @@ void parser::check(const symbol & t,
     return;
 }
 
-parser_item * parser::make_item(const symbol & h,
-				const std::vector<symbol> & b,
-				const symbol & t)
+parser_item * parser::make_item(const std::string & h,
+				const std::vector<std::string> & b,
+				const std::string & t)
 {
     parser_item * pi = new parser_item;
 
@@ -533,7 +552,7 @@ parser_item * parser::make_item(const symbol & h,
     return pi;
 }
 
-void parser::build_items(const symbol & t,
+void parser::build_items(const std::string & t,
 			 const std::set<parser_item *, parser_item_compare> & l,
 			 std::set<parser_item *, parser_item_compare> & n)
 {
@@ -549,15 +568,15 @@ void parser::build_items(const symbol & t,
 	    continue;
 	}
 
-	const symbol & s = pi->symbols[pi->index];
+	const std::string & s = pi->symbols[pi->index];
 
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
-#if 1
+#if 0
 	    // Is this cost effective?  Does it mess anything up?
 	    if(pi->index < pi->symbols.size() - 1) {
-		std::set<symbol> rs;
+		std::set<std::string> rs;
 
 		first(pi, pi->index + 1, rs);
 
@@ -596,7 +615,8 @@ void parser::build_items(const symbol & t,
     return;
 }
 
-void parser::shift(parser_state * ps, const symbol & t)
+void parser::shift(parser_state * ps,
+		   const std::string & t, const std::string & tv)
 {
     if(verbose > 0) {
 	std::cout << "shifting " << t << '\n';
@@ -608,8 +628,8 @@ void parser::shift(parser_state * ps, const symbol & t)
     struct tree_node * tn = tree_node_new(0);
 
     tn->terminal = (unsigned)terminal(t);
-    tree_node_set_head(tn, t.type.c_str());
-    tree_node_set_value(tn, t.value.c_str());
+    tree_node_set_head(tn, t.c_str());
+    tree_node_set_value(tn, tv.c_str());
 
     parser_state * ns = sr(ps, t);
 
@@ -620,8 +640,8 @@ void parser::shift(parser_state * ps, const symbol & t)
     return;
 }
 
-bool parser::first(const symbol & h, std::set<symbol> & v,
-		   std::set<symbol> & rs)
+bool parser::first(const std::string & h, std::set<std::string> & v,
+		   std::set<std::string> & rs)
 {
     bool se = false;
 
@@ -639,13 +659,12 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
 
     std::list<parser_rule *>::const_iterator li;
 
-    if(productions.count(h.type) == 0) {
+    if(productions.count(h) == 0) {
 	std::cerr << "error!\n";
 	return se;
     }
 
-    for(li = productions[h.type].begin();
-	li != productions[h.type].end(); ++li) {
+    for(li = productions[h].begin(); li != productions[h].end(); ++li) {
 	const parser_rule * rule = *li;
 
 	if(rule->symbols.empty()) {
@@ -656,7 +675,7 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
 	unsigned i;
 
 	for(i = 0; i < rule->symbols.size(); i++) {
-	    const symbol & s = rule->symbols[i];
+	    const std::string & s = rule->symbols[i];
 
 	    // Now add the FIRST of the current symbol
 	    if(first(s, v, rs)) {
@@ -679,20 +698,21 @@ bool parser::first(const symbol & h, std::set<symbol> & v,
     return se;
 }
 
-bool parser::first(const symbol & h, std::set<symbol> & rs)
+bool parser::first(const std::string & h, std::set<std::string> & rs)
 {
-    std::set<symbol> visited;
+    std::set<std::string> visited;
 
     // Call the recursive version with the visited map
     return first(h, visited, rs);
 }
 
-void parser::first(const parser_item * pi, unsigned idx, std::set<symbol> & rs)
+void parser::first(const parser_item * pi, unsigned idx,
+		   std::set<std::string> & rs)
 {
     unsigned size = pi->symbols.size();
 
     for(unsigned i = idx; i < size; i++) {
-	const symbol & s = pi->symbols[i];
+	const std::string & s = pi->symbols[i];
 
 	if(first(s, rs)) {
 	    // If empty body was seen, we continue with this body
@@ -730,11 +750,11 @@ void parser::closure(parser_state * ps)
 	    continue;
 	}
 
-#if 1
+#if 0
 	// Another possible optimization by comparing possible next
 	// symbols in the item against the upcoming token
 	{
-	    std::set<symbol> rs0;
+	    std::set<std::string> rs0;
 
 	    first(pi, pi->index, rs0);
 
@@ -756,18 +776,18 @@ void parser::closure(parser_state * ps)
 	    dump_item(pi);
 	}
 
-	const symbol & s = pi->symbols[pi->index];
+	const std::string & s = pi->symbols[pi->index];
 
 	if(terminal(s)) {
 	    continue;
 	}
 
-	if(productions.count(s.type) == 0) {
+	if(productions.count(s) == 0) {
 	    std::cerr << "ERROR?\n";
 	    continue;
 	}
 
-	std::set<symbol> rs;
+	std::set<std::string> rs;
 
 	// FIRST() after the current symbol in the item
 	// Given [ A -> /a/ . X /B/ , a ], find FIRST(/B/ a)
@@ -778,9 +798,9 @@ void parser::closure(parser_state * ps)
 
 	    for(unsigned i = pi->index + 1; i < pi->symbols.size(); i++) {
 		if(terminal(pi->symbols[i])) {
-		    std::cout << pi->symbols[i] << ' ';
+		    std::cout << "'" << pi->symbols[i] << "' ";
 		} else {
-		    std::cout << pi->symbols[i].type << ' ';
+		    std::cout << pi->symbols[i] << ' ';
 		}
 	    }
 
@@ -792,18 +812,17 @@ void parser::closure(parser_state * ps)
 	std::list<parser_rule *>::const_iterator li;
 
 	// for ( each production B -> y in G' )
-	for(li = productions[s.type].begin();
-	    li != productions[s.type].end(); ++li) {
+	for(li = productions[s].begin(); li != productions[s].end(); ++li) {
 	    parser_rule * rule = *li;
 
 	    if(verbose > 4) {
-		std::cout << "body: " << s.type << " -> ";
+		std::cout << "body: " << s << " -> ";
 
 		for(unsigned i = 0; i < rule->symbols.size(); i++) {
 		    if(terminal(rule->symbols[i])) {
-			std::cout << rule->symbols[i];
+			std::cout << "'" << rule->symbols[i] << "'";
 		    } else {
-			std::cout << rule->symbols[i].type;
+			std::cout << rule->symbols[i];
 		    }
 
 		    if(i < rule->symbols.size() - 1) {
@@ -816,7 +835,7 @@ void parser::closure(parser_state * ps)
 		dump_set("terminals: ", rs);
 	    }
 
-	    std::set<symbol>::const_iterator si;
+	    std::set<std::string>::const_iterator si;
 
 	    bool dup_test = false;
 
@@ -856,19 +875,20 @@ void parser::closure(parser_state * ps)
     return;
 }
 
-symbol parser::next_token(std::istream & tin)
+void parser::next_token(std::istream & tin)
 {
-    symbol t;
     int state = 0;
     char c;
 
-    t.value = "";
+    token = "";
+    token_value = "";
 
     for(;;) {
 	c = tin.get();
 
 	if(tin.eof()) {
-	    return symbol("$", "$");
+	    token = "$";
+	    return;
 	}
 
 	switch(state) {
@@ -876,61 +896,61 @@ symbol parser::next_token(std::istream & tin)
 	    if(isspace(c)) {
 		// skip white space (for now)
 	    } else if(isdigit(c)) {
-		t.value += c;
+		token_value += c;
 		state = 2;
 	    } else if(isalpha(c)) {
-		t.value += c;
+		token_value += c;
 		state = 1;
 	    } else if(c == '"') {
-		t.value += c;
+		token_value += c;
 		state = 5;
 	    } else if(c == '\'') {
 		// don't capture the opening quote
 		state = 4;
 	    } else if(c == '-') {
 		// could be '-' or '->'
-		t.value += c;
+		token_value += c;
 		state = 6;
 	    } else if(c == ';' || c == ':' || c == '{' || c == '}'
 		      || c == '(' || c == ')' || c == '?' || c == '&'
 		      || c == '+' || c == '*' || c == '/'
 		      || c == '=' || c == '[' || c == ']') {
 		// single character literal
-		t.type = c;
-		t.value = c;
-		return t;
+		token = c;
+		token_value = c;
+		return;
 	    } else {
 		// misc literal (hack)
-		t.value += c;
+		token_value += c;
 		state = 3;
 	    }
 	    break;
 
 	case 1: // ID | <ID-like literal from grammar>
 	    if(isalnum(c) || c == '_') {
-		t.value += c;
+		token_value += c;
 	    } else {
-		if(literals.count(t.value) > 0) {
+		if(literals.count(token_value) > 0) {
 		    // This is an ID-like literal that was specified
 		    // in the grammar
-		    t.type = t.value;
+		    token = token_value;
 		} else {
 		    // Otherwise, it is an ID
-		    t.type = "id";
+		    token = "id";
 		}
 
 		tin.unget();
-		return t;
+		return;
 	    }
 	    break;
 
 	case 2: // NUM
 	    if(isdigit(c)) {
-		t.value += c;
+		token_value += c;
 	    } else {
 		tin.unget();
-		t.type = "num";
-		return t;
+		token = "num";
+		return;
 	    }
 	    break;
 
@@ -938,47 +958,47 @@ symbol parser::next_token(std::istream & tin)
 	    // Anything other than whitespace is part of the literal
 	    if(isspace(c)) {
 		// just consume space
-		t.type = t.value;
-		return t;
+		token = token_value;
+		return;
 	    } else {
-		t.value += c;
+		token_value += c;
 	    }
 	    break;
 
 	case 4: // literal in the form of 'xyz'
 	    if(c == '\'') {
 		// don't capture the closing quote
-		t.type = "literal";
-		return t;
+		token = "literal";
+		return;
 	    } else {
-		t.value += c;
+		token_value += c;
 	    }
 	    break;
 
 	case 5:
 	    if(c == '"') {
-		t.value += c;
-		t.type = "string";
-		return t;
+		token_value += c;
+		token = "string";
+		return;
 	    } else {
-		t.value += c;
+		token_value += c;
 	    }
 	    break;
 
 	case 6:
 	    if(c == '>') {
-		t.value += c;
-		t.type = t.value;
-		return t;
+		token_value += c;
+		token = token_value;
+		return;
 	    } else {
 		tin.unget();
-		t.type = t.value;
-		return t;
+		token = token_value;
+		return;
 	    }
 
 	    break;
 	}
     }
 
-    return t;
+    return;
 }

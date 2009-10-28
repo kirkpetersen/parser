@@ -34,17 +34,6 @@ struct tree_node * parser_run(const char * grammar, const char * input)
 
 // C++ code
 
-std::ostream & operator<<(std::ostream & out, const symbol & s)
-{
-    if(s.value.empty()) {
-	out << "[" << s.type << "]";
-    } else {
-	out << "[" << s.type << "," << s.value << "]";
-    }
-
-    return out;
-}
-
 bool parser_item_compare::operator()(const parser_item * p1,
 				     const parser_item * p2) const
 {

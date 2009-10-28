@@ -11,15 +11,14 @@
 
 #include "parser.hh"
 
-void parser::dump_set(const char * msg, const std::set<symbol> & rs)
+void parser::dump_set(const char * msg, const std::set<std::string> & rs)
 {
     std::cout << msg;
 
-    std::set<symbol>::const_iterator si;
+    std::set<std::string>::const_iterator si;
 
     for(si = rs.begin(); si != rs.end(); ++si) {
-	const symbol & s = *si;
-	std::cout << s.type << " ";
+	std::cout << *si << " ";
     }
 
     std::cout << '\n';
@@ -57,7 +56,7 @@ void parser::dump_grammar(void)
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); ++mi) {
-	const symbol & h = mi->first;
+	const std::string & h = mi->first;
 	const std::list<parser_rule *> & l = mi->second;
 
 	std::list<parser_rule *>::const_iterator li;
@@ -67,18 +66,18 @@ void parser::dump_grammar(void)
 	    const parser_rule * rule = *li;
 	    unsigned size = rule->symbols.size();
 
-	    std::cout << " " << h.type << " -> ";
+	    std::cout << " " << h << " -> ";
 
-	    std::list<symbol>::const_iterator li2;
+	    std::list<std::string>::const_iterator li2;
 
 	    // Iterates through the symbols
 	    for(unsigned i = 0; i < size; i++) {
-		const symbol & s = rule->symbols[i];
+		const std::string & s = rule->symbols[i];
 
 		if(terminal(s)) {
-		    std::cout << s;
+		    std::cout << "'" << s << "'";
 		} else {
-		    std::cout << s.type;
+		    std::cout << s;
 		}
 
 		if(i < size - 1) {
@@ -105,22 +104,18 @@ void parser::dump(const char * msg)
 
     std::cout << "parser state:\n";
 
-    std::cout << "current token: " << token.type
-	 << ", value: " << token.value << '\n';
+    std::cout << "current token: " << token
+	 << ", value: " << token_value << '\n';
 
-    std::cout << " symbol stack:\n";
+    std::cout << " symbol stack: ";
 
-    std::deque<symbol>::const_iterator sy;
+    std::deque<std::string>::const_iterator sy;
 
     for(sy = symbol_stack.begin(); sy != symbol_stack.end(); ++sy) {
-	const symbol & s = *sy;
-
-	if(terminal(s)) {
-	    std::cout << "  " << s << '\n';
-	} else {
-	    std::cout << "  " << s.type << '\n';
-	}
+	std::cout << *sy << ' ';
     }
+
+    std::cout << "\n";
 
     std::deque<parser_state *>::const_iterator st;
 
@@ -196,7 +191,7 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
 void parser::dump_item(const parser_item * pi, unsigned spaces) {
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
-    std::cout << pi->head.type << " -> ";
+    std::cout << pi->head << " -> ";
 
     unsigned size = pi->symbols.size();
 
@@ -207,9 +202,9 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
 	}
 
 	if(terminal(pi->symbols[i])) {
-	    std::cout << pi->symbols[i];
+	    std::cout << "'" << pi->symbols[i] << "'";
 	} else {
-	    std::cout << pi->symbols[i].type;
+	    std::cout << pi->symbols[i];
 	}
 
 	std::cout << " ";
@@ -219,7 +214,7 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
 	std::cout << ".";
     }
 
-    std::cout << " {" << pi->terminal.type << "}\n";
+    std::cout << " {" << pi->terminal << "}\n";
 
     return;
 }
