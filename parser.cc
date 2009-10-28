@@ -154,8 +154,6 @@ void parser::load_production(struct tree_node * tn)
 			} else if((x = tree_node_find(s, "literal"))) {
 			    literals.insert(x->value);
 			    rule->symbols.push_back(x->value);
-			} else if((x = tree_node_find(s, "num"))) {
-			    rule->symbols.push_back(symbol("ref", x->value));
 			}
 			// action...
 		    }
@@ -733,8 +731,8 @@ void parser::closure(parser_state * ps)
 	}
 
 #if 1
-	// Another possible optimization by comparing next symbol in
-	// the item against the upcoming token
+	// Another possible optimization by comparing possible next
+	// symbols in the item against the upcoming token
 	{
 	    std::set<symbol> rs0;
 
