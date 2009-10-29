@@ -98,7 +98,7 @@ void parser::dump(const char * msg)
 	std::cout << "[" << msg << "]\n";
     }
 
-    if(verbose > 3) {
+    if(verbose > 5) {
 	dump_grammar();
     }
 
@@ -197,24 +197,17 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
 
     for(unsigned i = 0; i < size; i++) {
 	if(i == pi->index) {
-	    // Add the dot
 	    std::cout << ". ";
 	}
 
-	if(terminal(pi->rule->symbols[i])) {
-	    std::cout << "'" << pi->rule->symbols[i] << "'";
-	} else {
-	    std::cout << pi->rule->symbols[i];
-	}
-
-	std::cout << " ";
+	std::cout << pi->rule->symbols[i] << " ";
     }
 
     if(pi->index == size) {
-	std::cout << ".";
+	std::cout << ". ";
     }
 
-    std::cout << " {" << pi->terminal << "}\n";
+    std::cout << "{" << pi->terminal << "}\n";
 
     return;
 }

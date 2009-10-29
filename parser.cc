@@ -584,7 +584,7 @@ void parser::build_items(const std::string & t,
 	if(t == s) {
 #if 0
 	    // Is this cost effective?  Does it mess anything up?
-	    if(pi->index < pi->rule->symbols.size() - 1) {
+	    if(pi->index <= pi->rule->symbols.size()) {
 		std::set<std::string> rs;
 
 		first(pi, pi->index + 1, rs);
@@ -806,11 +806,7 @@ void parser::closure(parser_state * ps)
 	    std::cout << "closure: FIRST(";
 
 	    for(unsigned i = pi->index + 1; i < pi->rule->symbols.size(); i++) {
-		if(terminal(pi->rule->symbols[i])) {
-		    std::cout << "'" << pi->rule->symbols[i] << "' ";
-		} else {
-		    std::cout << pi->rule->symbols[i] << ' ';
-		}
+		std::cout << pi->rule->symbols[i] << ' ';
 	    }
 
 	    std::cout << pi->terminal;
@@ -828,11 +824,7 @@ void parser::closure(parser_state * ps)
 		std::cout << "rule: " << rule->head << " -> ";
 
 		for(unsigned i = 0; i < rule->symbols.size(); i++) {
-		    if(terminal(rule->symbols[i])) {
-			std::cout << "'" << rule->symbols[i] << "'";
-		    } else {
-			std::cout << rule->symbols[i];
-		    }
+		    std::cout << rule->symbols[i];
 
 		    if(i < rule->symbols.size() - 1) {
 			std::cout << ' ';
