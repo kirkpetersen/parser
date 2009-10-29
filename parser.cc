@@ -17,12 +17,14 @@ parser::~parser(void)
 {
     struct tree_node * tn;
 
-    tn = node_stack.front();
-    node_stack.pop_front();
+    if(!node_stack.empty()) {
+	tn = node_stack.front();
+	node_stack.pop_front();
 
-    assert(node_stack.empty());
+	assert(node_stack.empty());
 
-    tree_node_free(tn);
+	tree_node_free(tn);
+    }
 
     std::map<std::string, std::list<parser_rule *> >::const_iterator pi;
 

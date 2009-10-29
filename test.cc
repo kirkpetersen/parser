@@ -88,14 +88,14 @@ int test_empty(void)
 {
     parser p;
 
-    set<symbol>::const_iterator si;
+    set<string>::const_iterator si;
 
-    set<symbol> rs;
+    set<string> rs;
     bool e;
 
     p.load("tests/test8.grammar");
 
-    e = p.first(symbol("F"), rs);
+    e = p.first("F", rs);
     p.dump_set("FIRST(F): ", rs);
     assert(rs.count("(") == 1);
     assert(rs.count("id") == 1);
@@ -103,7 +103,7 @@ int test_empty(void)
 
     rs.clear();
 
-    e = p.first(symbol("T"), rs);
+    e = p.first("T", rs);
     p.dump_set("FIRST(T): ", rs);
     assert(rs.count("(") == 1);
     assert(rs.count("id") == 1);
@@ -111,7 +111,7 @@ int test_empty(void)
 
     rs.clear();
 
-    e = p.first(symbol("E"), rs);
+    e = p.first("E", rs);
     p.dump_set("FIRST(E): ", rs);
     assert(rs.count("(") == 1);
     assert(rs.count("id") == 1);
@@ -119,14 +119,14 @@ int test_empty(void)
 
     rs.clear();
 
-    e = p.first(symbol("E2"), rs);
+    e = p.first("E2", rs);
     p.dump_set("FIRST(E2): ", rs);
     assert(rs.count("+") == 1);
     assert(e == true);
 
     rs.clear();
 
-    e = p.first(symbol("T2"), rs);
+    e = p.first("T2", rs);
     p.dump_set("FIRST(T2): ", rs);
     assert(rs.count("*") == 1);
     assert(e == true);
@@ -134,62 +134,31 @@ int test_empty(void)
     rs.clear();
 
 #if 0
-    p.follows(symbol("E"), rs);
+    p.follows("E", rs);
     p.dump_set("FOLLOWS(E): ", rs);
 
     rs.clear();
 
-    p.follows(symbol("E2"), rs);
+    p.follows("E2", rs);
     p.dump_set("FOLLOWS(E2): ", rs);
 
     rs.clear();
 
-    p.follows(symbol("T"), rs);
+    p.follows("T", rs);
     p.dump_set("FOLLOWS(T): ", rs);
 
     rs.clear();
 
-    p.follows(symbol("T2"), rs);
+    p.follows("T2", rs);
     p.dump_set("FOLLOWS(T2): ", rs);
 
     rs.clear();
 
-    p.follows(symbol("F"), rs);
+    p.follows("F", rs);
     p.dump_set("FOLLOWS(F): ", rs);
 #endif
 
     rs.clear();
-
-#if 0
-    {
-	vector<symbol> b(3);
-
-	b[0] = symbol("+");
-	b[1] = symbol("T");
-	b[2] = symbol("E2");
-
-	e = p.first(b, 1, rs);
-	p.dump_set("FIRST(T E2): ", rs);
-	assert(rs.count("(") == 1);
-	assert(rs.count("id") == 1);
-	assert(e == false);
-    }
-
-    rs.clear();
-
-    {
-	vector<symbol> b(3);
-
-	b[0] = symbol("+");
-	b[1] = symbol("T");
-	b[2] = symbol("E2");
-
-	e = p.first(b, 2, rs);
-	p.dump_set("FIRST(E2): ", rs);
-	assert(rs.count("+") == 1);
-	assert(e == true);
-    }
-#endif
 
     return 0;
 }
@@ -198,50 +167,34 @@ int test_empty2(void)
 {
     parser p;
 
-    set<symbol>::const_iterator si;
+    set<string>::const_iterator si;
 
-    set<symbol> rs;
+    set<string> rs;
     bool e;
 
     p.load("tests/test6.grammar");
 
-    e = p.first(symbol("s"), rs);
+    e = p.first("s", rs);
     p.dump_set("FIRST(s): ", rs);
-    assert(rs.count("a") == 1);
-    assert(rs.count("b") == 1);
+    assert(rs.count("id") == 1);
+    assert(rs.count("num") == 1);
     assert(e == false);
 
     rs.clear();
 
-    e = p.first(symbol("x"), rs);
+    e = p.first("x", rs);
     p.dump_set("FIRST(x): ", rs);
-    assert(rs.count("a") == 1);
+    assert(rs.count("id") == 1);
     assert(e == true);
 
     rs.clear();
 
-    e = p.first(symbol("y"), rs);
+    e = p.first("y", rs);
     p.dump_set("FIRST(y): ", rs);
-    assert(rs.count("b") == 1);
+    assert(rs.count("num") == 1);
     assert(e == false);
 
     rs.clear();
-
-#if 0
-    {
-	vector<symbol> b(3);
-
-	b[0] = symbol("x");
-	b[1] = symbol("y");
-	b[2] = symbol("x");
-
-	e = p.first(b, 0, rs);
-	p.dump_set("FIRST(x y x): ", rs);
-	assert(rs.count("a") == 1);
-	assert(rs.count("b") == 1);
-	assert(e == false);
-    }
-#endif
 
     return 0;
 }
@@ -250,15 +203,15 @@ int test_c(void)
 {
     parser p;
 
-    set<symbol>::const_iterator si;
+    set<string>::const_iterator si;
 
-    set<symbol> rs;
+    set<string> rs;
 
     cout << "loading C grammar" << endl;
 
     p.load("tests/c2.grammar");
 
-    p.first(symbol("translation_unit"), rs);
+    p.first("translation_unit", rs);
     p.dump_set("FIRST(translation_unit): ", rs);
 
     return 0;
@@ -268,23 +221,11 @@ int test_lr1(void)
 {
     parser p;
 
-    set<symbol>::const_iterator si;
+    set<string>::const_iterator si;
 
-    set<symbol> rs;
+    set<string> rs;
 
     p.load("tests/test3.grammar");
-
-#if 0
-    p.follows(symbol("R"), rs);
-    p.dump_set("FOLLOWS(R): ", rs);
-
-    rs.clear();
-
-    p.follows(symbol("L"), rs);
-    p.dump_set("FOLLOWS(L): ", rs);
-
-    rs.clear();
-#endif
 
     return 0;
 }
