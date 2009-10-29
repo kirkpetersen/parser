@@ -15,12 +15,13 @@ TODO
   - currently, most loops in closure are simply creating and dropping
     duplicate items
 
-- begin thinking about efficiency concerns
-  - closure is starting to get ugly
-  - with the c2 grammar, gprof shows 67% in operator<(parser_item)
-  - hash_map or unordered_map?  or just new data structure?
-- convert productions into stack of productions
+- productions map that is "versioned"
   - this is required for supporting scoped changes to the grammar
+  - turn into a hash structure for faster lookup
+  - allow for marking and later reverting to that mark
+  - on the first change in any scope, mark, make changes
+  - if changes were made in the scope, revert on exit
+
 - write simple test for extending syntax on the fly
   - introduce custom code to trigger
 - C API

@@ -44,6 +44,8 @@ void parser::build_rule(const std::string & head, ...)
     parser_rule * rule = new parser_rule;
     va_list ap;
 
+    rule->head = head;
+
     // add to body with va_args
     va_start(ap, head);
 
@@ -131,6 +133,7 @@ void parser::load_tokenizer(struct tree_node * tn)
 		struct tree_node * s = tree_node_find(line, "id");
 		parser_rule * rule = new parser_rule;
 
+		rule->head = start;
 		rule->symbols.push_back(s->value);
 
 		productions[start].push_back(rule);
@@ -174,6 +177,8 @@ void parser::load_production(struct tree_node * tn)
 		}
 	    }
 
+	    rule->head = id->value;
+
 	    productions[id->value].push_back(rule);
 	}
     }
@@ -213,6 +218,11 @@ void parser::load(const char * filename)
     std::ifstream fs(filename, std::fstream::in);
 
     bp.run(fs);
+
+    if(!bp.tree()) {
+	std::cerr << "no tree\n";
+	return;
+    }
 
     struct tree_node * tg, * tn = bp.tree();
 
@@ -268,13 +278,10 @@ bool parser::reduce(parser_state * ps,
     std::set<parser_item *, parser_item_compare>::const_iterator ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
-
-	// This can't be a reference or bad things happen when the
-	// state is popped off the stack
 	parser_item * pi = *ki;
 
 	// Skip any item without the dot at the end
-	if(pi->index != pi->symbols.size()) {
+	if(pi->index != pi->rule->symbols.size()) {
 	    continue;
 	}
 
@@ -283,12 +290,12 @@ bool parser::reduce(parser_state * ps,
 	    continue;
 	}
 
-	unsigned n = pi->symbols.size();
+	unsigned n = pi->rule->symbols.size();
 
 	struct tree_node * pn = tree_node_new(n);
 
-	pn->terminal = (unsigned)terminal(pi->head);
-	tree_node_set_head(pn, pi->head.c_str());
+	pn->terminal = (unsigned)terminal(pi->rule->head);
+	tree_node_set_head(pn, pi->rule->head.c_str());
 
 	// Pop all the appropriate symbols off the stack
 	for(unsigned i = 0; i < n; i++) {
@@ -304,7 +311,7 @@ bool parser::reduce(parser_state * ps,
 	    ps = state_stack.back();
 	}
 
-	symbol_stack.push_back(pi->head);
+	symbol_stack.push_back(pi->rule->head);
 
 	// Now build the tree node
 	for(unsigned i = n; i > 0; i--) {
@@ -316,7 +323,7 @@ bool parser::reduce(parser_state * ps,
 	node_stack.push_back(pn);
 
 	if(verbose > 0) {
-	    std::cout << "reduce: " << pi->head << " -> ";
+	    std::cout << "reduce: " << pi->rule->head << " -> ";
 
 	    // FIXME tree_node_dump_below(pn)
 	    // dump_tree_below(pn);
@@ -353,6 +360,8 @@ bool parser::reduce(parser_state * ps,
 	    // This should do the trick...
 	    load_body(sn, rule->symbols);
 
+	    rule->head = h.head;
+
 	    productions[h.head].push_back(rule);
 	}
 #endif
@@ -360,7 +369,7 @@ bool parser::reduce(parser_state * ps,
 	// Now that we've reduced, we need to look at the new
 	// symbol on the stack and determine a new transition
 
-	parser_state * ns = sr(ps, pi->head);
+	parser_state * ns = sr(ps, pi->rule->head);
 
 	state_stack.push_back(ns);
 
@@ -388,7 +397,8 @@ void parser::run(std::istream & tin)
     std::list<parser_rule *>::const_iterator li;
 
     for(li = sp.begin(); li != sp.end(); ++li) {
-	parser_item * pi = make_item(start, (*li)->symbols, "$");
+	parser_rule * rule = *li;
+	parser_item * pi = make_item(rule, "$");
 	ps->kernel_items.insert(pi);
     }
 
@@ -495,15 +505,15 @@ void parser::check(const std::string & t,
     for(li = l.begin(); li != l.end(); ++li) {
 	const parser_item * pi = *li;
 
-	if(pi->index < pi->symbols.size()) {
+	if(pi->index < pi->rule->symbols.size()) {
 	    // Not at the end of the item, so we should check for
 	    // shift conditions
 
-	    if(!terminal(pi->symbols[pi->index])) {
+	    if(!terminal(pi->rule->symbols[pi->index])) {
 		continue;
 	    }
 
-	    if(t == pi->symbols[pi->index]) {
+	    if(t == pi->rule->symbols[pi->index]) {
 		if(verbose > 1) {
 		    std::cout << "check: shift ";
 		    dump_item(pi);
@@ -515,7 +525,7 @@ void parser::check(const std::string & t,
 	} else {
 	    // At the end of this item, check for valid reduce or accept
 
-	    if(pi->head == start) {
+	    if(pi->rule->head == start) {
 		if(t == "$") {
 		    if(verbose > 1) {
 			std::cout << "check: accept ";
@@ -540,14 +550,11 @@ void parser::check(const std::string & t,
     return;
 }
 
-parser_item * parser::make_item(const std::string & h,
-				const std::vector<std::string> & b,
-				const std::string & t)
+parser_item * parser::make_item(const parser_rule * r, const std::string & t)
 {
     parser_item * pi = new parser_item;
 
-    pi->head = h;
-    pi->symbols = b;
+    pi->rule = r;
     pi->index = 0;
     pi->terminal = t;
 
@@ -566,18 +573,18 @@ void parser::build_items(const std::string & t,
     for(li = l.begin(); li != l.end(); ++li) {
 	const parser_item * pi = *li;
 
-	if(pi->index >= pi->symbols.size()) {
+	if(pi->index >= pi->rule->symbols.size()) {
 	    continue;
 	}
 
-	const std::string & s = pi->symbols[pi->index];
+	const std::string & s = pi->rule->symbols[pi->index];
 
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
 #if 0
 	    // Is this cost effective?  Does it mess anything up?
-	    if(pi->index < pi->symbols.size() - 1) {
+	    if(pi->index < pi->rule->symbols.size() - 1) {
 		std::set<std::string> rs;
 
 		first(pi, pi->index + 1, rs);
@@ -711,10 +718,10 @@ bool parser::first(const std::string & h, std::set<std::string> & rs)
 void parser::first(const parser_item * pi, unsigned idx,
 		   std::set<std::string> & rs)
 {
-    unsigned size = pi->symbols.size();
+    unsigned size = pi->rule->symbols.size();
 
     for(unsigned i = idx; i < size; i++) {
-	const std::string & s = pi->symbols[i];
+	const std::string & s = pi->rule->symbols[i];
 
 	if(first(s, rs)) {
 	    // If empty body was seen, we continue with this body
@@ -748,7 +755,7 @@ void parser::closure(parser_state * ps)
 	parser_item * pi = queue.front();
 	queue.pop();
 
-	if(pi->index >= pi->symbols.size()) {
+	if(pi->index >= pi->rule->symbols.size()) {
 	    continue;
 	}
 
@@ -778,7 +785,7 @@ void parser::closure(parser_state * ps)
 	    dump_item(pi);
 	}
 
-	const std::string & s = pi->symbols[pi->index];
+	const std::string & s = pi->rule->symbols[pi->index];
 
 	if(terminal(s)) {
 	    continue;
@@ -798,11 +805,11 @@ void parser::closure(parser_state * ps)
 	if(verbose > 4) {
 	    std::cout << "closure: FIRST(";
 
-	    for(unsigned i = pi->index + 1; i < pi->symbols.size(); i++) {
-		if(terminal(pi->symbols[i])) {
-		    std::cout << "'" << pi->symbols[i] << "' ";
+	    for(unsigned i = pi->index + 1; i < pi->rule->symbols.size(); i++) {
+		if(terminal(pi->rule->symbols[i])) {
+		    std::cout << "'" << pi->rule->symbols[i] << "' ";
 		} else {
-		    std::cout << pi->symbols[i] << ' ';
+		    std::cout << pi->rule->symbols[i] << ' ';
 		}
 	    }
 
@@ -818,7 +825,7 @@ void parser::closure(parser_state * ps)
 	    parser_rule * rule = *li;
 
 	    if(verbose > 4) {
-		std::cout << "body: " << s << " -> ";
+		std::cout << "rule: " << rule->head << " -> ";
 
 		for(unsigned i = 0; i < rule->symbols.size(); i++) {
 		    if(terminal(rule->symbols[i])) {
@@ -843,7 +850,7 @@ void parser::closure(parser_state * ps)
 
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
-		parser_item * pi2 = make_item(s, rule->symbols, *si);
+		parser_item * pi2 = make_item(rule, *si);
 
 		if(ps->nonkernel_items.count(pi2) > 0) {
 		    stats.closure_item_duplicates++;

@@ -40,20 +40,20 @@ bool parser_item_compare::operator()(const parser_item * p1,
     const bool i = p1->index == p2->index;
 
     if(i) {
-	const bool h = p1->head == p2->head;
+	const bool h = p1->rule->head == p2->rule->head;
 
 	if(h) {
-	    const bool s = p1->symbols == p2->symbols;
+	    const bool s = p1->rule->symbols == p2->rule->symbols;
 
 	    if(s) {
 		if(p1->terminal < p2->terminal) {
 		    return true;
 		}
 
-	    } else if(p1->symbols < p2->symbols) {
+	    } else if(p1->rule->symbols < p2->rule->symbols) {
 		return true;
 	    }
-	} else if(p1->head < p2->head) {
+	} else if(p1->rule->head < p2->rule->head) {
 	    return true;
 	}
     } else if(p1->index < p2->index) {

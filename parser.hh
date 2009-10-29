@@ -21,9 +21,14 @@ extern "C" {
 #include "parser_c.h"
 }
 
-struct parser_item {
+struct parser_rule {
     std::string head;
     std::vector<std::string> symbols;
+};
+
+struct parser_item {
+    const parser_rule * rule;
+
     unsigned index;
     std::string terminal;
 };
@@ -50,11 +55,6 @@ struct parser_stats {
     unsigned closure_item_duplicates;
     unsigned closure_item_non_duplicates;
     unsigned closure_skips;
-};
-
-struct parser_rule {
-    std::string head;
-    std::vector<std::string> symbols;
 };
 
 class parser {
@@ -91,7 +91,11 @@ public:
     void run(std::istream & tin);
 
     struct tree_node * tree(void) {
-	return node_stack.back();
+	if(node_stack.empty()) {
+	    return NULL;
+	} else {
+	    return node_stack.back();
+	}
     }
 
     // FIXME tweak this...
@@ -116,9 +120,7 @@ public:
 	       const std::set<parser_item *, parser_item_compare> & l,
 	       int & cs, int & cr, int & ca);
 
-    parser_item * make_item(const std::string & h,
-			    const std::vector<std::string> & b,
-			    const std::string & t);
+    parser_item * make_item(const parser_rule * r, const std::string & t);
 
     void build_items(const std::string & t,
 		     const std::set<parser_item *, parser_item_compare> & l,

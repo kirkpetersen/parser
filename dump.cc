@@ -191,9 +191,9 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
 void parser::dump_item(const parser_item * pi, unsigned spaces) {
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
-    std::cout << pi->head << " -> ";
+    std::cout << pi->rule->head << " -> ";
 
-    unsigned size = pi->symbols.size();
+    unsigned size = pi->rule->symbols.size();
 
     for(unsigned i = 0; i < size; i++) {
 	if(i == pi->index) {
@@ -201,10 +201,10 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
 	    std::cout << ". ";
 	}
 
-	if(terminal(pi->symbols[i])) {
-	    std::cout << "'" << pi->symbols[i] << "'";
+	if(terminal(pi->rule->symbols[i])) {
+	    std::cout << "'" << pi->rule->symbols[i] << "'";
 	} else {
-	    std::cout << pi->symbols[i];
+	    std::cout << pi->rule->symbols[i];
 	}
 
 	std::cout << " ";
