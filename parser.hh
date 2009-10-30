@@ -87,6 +87,10 @@ public:
 
     void init_state(void);
 
+    void expect(const std::set<parser_item *, parser_item_compare> & items,
+		std::set<std::string> & ss, bool nt = false);
+    void expect(std::set<std::string> & ss, bool nt = false);
+
     bool step(std::string & t, std::string & tv);
     void run(std::istream & tin);
 

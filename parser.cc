@@ -408,6 +408,38 @@ bool parser::reduce(parser_state * ps,
     return false;
 }
 
+void parser::expect(const std::set<parser_item *, parser_item_compare> & items,
+		    std::set<std::string> & ss, bool nt)
+{
+    std::set<parser_item *>::const_iterator li;
+
+    // Look for all terminal symbols that we are expecting
+    for(li = items.begin(); li != items.end(); ++li) {
+	const parser_item * pi = *li;
+
+	if(pi->index < pi->rule->symbols.size()) {
+	    if(terminal(pi->rule->symbols[pi->index]) || nt) {
+		ss.insert(pi->rule->symbols[pi->index]);
+	    }
+	} else {
+	    // This is a reduce state, insert the lookahead symbol
+	    ss.insert(pi->terminal);
+	}
+    }
+
+    return;
+}
+
+void parser::expect(std::set<std::string> & ss, bool nt)
+{
+    parser_state * ps = state_stack.back();
+
+    expect(ps->kernel_items, ss, nt);
+    expect(ps->nonkernel_items, ss, nt);
+
+    return;
+}
+
 bool parser::step(std::string & t, std::string & tv)
 {
     parser_state * ps;
@@ -466,7 +498,7 @@ bool parser::step(std::string & t, std::string & tv)
 	}
     } else {
 	dump("ERROR!", t, tv);
-	return false;
+	return true;
     }
 
     return false;

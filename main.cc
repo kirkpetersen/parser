@@ -48,6 +48,22 @@ int main(int argc, char * argv[])
 	p.next_token(std::cin, t, tv);
 
 	for(;;) {
+	    std::set<std::string> ss;
+
+	    p.expect(ss);
+
+	    if(verbose > 2) {
+		std::cout << "expecting: ";
+
+		std::set<std::string>::const_iterator si;
+
+		for(si = ss.begin(); si != ss.end(); ++si) {
+		    std::cout << *si << " ";
+		}
+
+		std::cout << "\n";
+	    }
+
 	    nt = p.step(t, tv);
 
 	    if(nt) {
