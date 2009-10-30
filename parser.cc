@@ -215,6 +215,8 @@ void parser::load(const char * filename)
     // This parser is used to load the user's grammar file
     bp.bootstrap();
 
+    bp.init_state();
+
     std::ifstream fs(filename, std::fstream::in);
 
     bp.run(fs);
@@ -243,6 +245,33 @@ void parser::load(const char * filename)
     }
 
     fs.close();
+
+    init_state();
+
+    return;
+}
+
+void parser::init_state(void)
+{
+    std::list<parser_rule *> sp = productions[start];
+
+    if(sp.empty()) {
+	std::cerr << "no start state!\n";
+	return;
+    }
+
+    parser_state * ps = new parser_state;
+
+    std::list<parser_rule *>::const_iterator li;
+
+    for(li = sp.begin(); li != sp.end(); ++li) {
+	parser_item * pi = make_item(*li, "$");
+	ps->kernel_items.insert(pi);
+    }
+
+    closure(ps);
+
+    state_stack.push_back(ps);
 
     return;
 }
@@ -379,36 +408,77 @@ bool parser::reduce(parser_state * ps,
     return false;
 }
 
-void parser::run(std::istream & tin)
+bool parser::step(std::string & t, std::string & tv)
 {
-    std::list<parser_rule *> sp = productions[start];
-
-    if(sp.empty()) {
-	std::cerr << "no start state!\n";
-	return;
-    }
-
-    // Get the first token immediately
-    next_token(tin);
-
-    // Create the initial parser state
-    parser_state * ps = new parser_state;
-
-    std::list<parser_rule *>::const_iterator li;
-
-    for(li = sp.begin(); li != sp.end(); ++li) {
-	parser_rule * rule = *li;
-	parser_item * pi = make_item(rule, "$");
-	ps->kernel_items.insert(pi);
-    }
+    parser_state * ps;
+    int cs = 0, cr = 0, ca = 0;
 
     if(verbose > 2) {
-	std::cout << "closure for initial state\n";
+	dump("verbose dump (every step)", t, tv);
     }
 
-    closure(ps);
+    assert(!state_stack.empty());
 
-    state_stack.push_back(ps);
+    ps = state_stack.back();
+
+    // Check for shift, reduce, or accept conditions
+    check(t, ps->kernel_items, cs, cr, ca);
+    check(t, ps->nonkernel_items, cs, cr, ca);
+
+    stats.shifts += cs;
+    stats.reduces += cr;
+    stats.accepts += ca;
+
+    if(verbose > 0) {
+	std::cout << "shifts: " << cs << ", "
+		  << "reduces: " << cr << ", "
+		  << "accepts: " << ca << '\n';
+    }
+
+    if(cs > 0 && cr > 0) {
+	dump("shift/reduce conflict", t, tv);
+	return false;
+    }
+
+    if(cr > 1) {
+	dump("reduce/reduce conflict", t, tv);
+	return false;
+    }
+
+    if(ca > 0) {
+	// One final reduce of the parse tree
+	reduce(ps, t, tv, ps->kernel_items, true);
+	return true;
+    } else if(cs > 0) {
+	shift(ps, t, tv);
+	return true;
+    } else if(cr > 0) {
+	bool match = reduce(ps, t, tv, ps->kernel_items);
+
+	// Only check nonkernel items if there isn't a match with
+	// the kernel items. Most reduces are in the kernel items.
+	if(!match) {
+	    if(verbose > 3) {
+		std::cout << "checking nonkernel items for reduce\n";
+	    }
+
+	    reduce(ps, t, tv, ps->nonkernel_items);
+	}
+    } else {
+	dump("ERROR!", t, tv);
+	return false;
+    }
+
+    return false;
+}
+
+void parser::run(std::istream & tin)
+{
+    std::string t, tv;
+
+    next_token(tin, t, tv);
+
+    parser_state * ps = state_stack.back();
 
     unsigned loop = 0;
 
@@ -417,22 +487,22 @@ void parser::run(std::istream & tin)
 
 	if(verbose > 0) {
 	    std::cout << "LOOP: " << loop++
-		      << ", token: " << token
-		      << ", token_value: " << token_value
+		      << ", token: " << t
+		      << ", token_value: " << tv
 		      << '\n';
 
 	    std::cout.flush();
 	}
 
 	if(verbose > 2) {
-	    dump("verbose dump (every loop)");
+	    dump("verbose dump (every loop)", t, tv);
 	}
 
 	int cs = 0, cr = 0, ca = 0;
 
 	// Check for shift, reduce, or accept conditions
-	check(token, ps->kernel_items, cs, cr, ca);
-	check(token, ps->nonkernel_items, cs, cr, ca);
+	check(t, ps->kernel_items, cs, cr, ca);
+	check(t, ps->nonkernel_items, cs, cr, ca);
 
 	stats.shifts += cs;
 	stats.reduces += cr;
@@ -445,34 +515,29 @@ void parser::run(std::istream & tin)
 	}
 
 	if(cs > 0 && cr > 0) {
-	    dump("shift/reduce conflict");
+	    dump("shift/reduce conflict", t, tv);
 	    break;
 	}
 
 	if(cr > 1) {
-	    dump("reduce/reduce conflict");
+	    dump("reduce/reduce conflict", t, tv);
 	    break;
 	}
 
 	if(ca > 0) {
 	    // One final reduce of the parse tree
-	    reduce(ps, token, token_value, ps->kernel_items, true);
+	    reduce(ps, t, tv, ps->kernel_items, true);
 
 	    break;
 	} else if(cs > 0) {
-	    std::string old = token;
-	    std::string old_value = token_value;
+	    shift(ps, t, tv);
 
-	    // Grab the next token now
-	    // This might help us optimize creation of states/items
-	    next_token(tin);
-
-	    shift(ps, old, old_value);
+	    next_token(tin, t, tv);
 
 	    // Set the current state to the one shift() created
 	    ps = state_stack.back();
 	} else if(cr > 0) {
-	    bool match = reduce(ps, token, token_value, ps->kernel_items);
+	    bool match = reduce(ps, t, tv, ps->kernel_items);
 
 	    // Only check nonkernel items if there isn't a match with
 	    // the kernel items. Most reduces are in the kernel items.
@@ -481,13 +546,13 @@ void parser::run(std::istream & tin)
 		    std::cout << "checking nonkernel items for reduce\n";
 		}
 
-		reduce(ps, token, token_value, ps->nonkernel_items);
+		reduce(ps, t, tv, ps->nonkernel_items);
 	    }
 
 	    ps = state_stack.back();
 
 	} else {
-	    dump("ERROR!");
+	    dump("ERROR!", t, tv);
 	    break;
 	}
     }
@@ -582,26 +647,6 @@ void parser::build_items(const std::string & t,
 	// for ( each item [ A -> /a/ . X /B/ , a ] in I )
 	//        add item [ A -> /a/ X . /B/ , a ] in J )  
 	if(t == s) {
-#if 0
-	    // Is this cost effective?  Does it mess anything up?
-	    if(pi->index <= pi->rule->symbols.size()) {
-		std::set<std::string> rs;
-
-		first(pi, pi->index + 1, rs);
-
-		if(rs.count(token) == 0) {
-		    if(verbose > 4) {
-			std::cout << "skipping item [token " << token << "]: ";
-			dump_item(pi);
-		    }
-
-		    stats.build_item_skips++;
-
-		    continue;
-		}
-	    }
-#endif
-
 	    parser_item * ni = new parser_item;
 
 	    // Copy the item
@@ -759,27 +804,6 @@ void parser::closure(parser_state * ps)
 	    continue;
 	}
 
-#if 0
-	// Another possible optimization by comparing possible next
-	// symbols in the item against the upcoming token
-	{
-	    std::set<std::string> rs0;
-
-	    first(pi, pi->index, rs0);
-
-	    if(rs0.count(token) == 0) {
-		if(verbose > 4) {
-		    std::cout << "closure: skipping item [token " << token << "]: ";
-		    dump_item(pi);
-		}
-
-		stats.closure_skips++;
-
-		continue;
-	    }
-	}
-#endif
-
 	if(verbose > 4) {
 	    std::cout << "closing item: ";
 	    dump_item(pi);
@@ -876,19 +900,19 @@ void parser::closure(parser_state * ps)
     return;
 }
 
-void parser::next_token(std::istream & tin)
+void parser::next_token(std::istream & tin, std::string & t, std::string & tv)
 {
     int state = 0;
     char c;
 
-    token = "";
-    token_value = "";
+    t = "";
+    tv = "";
 
     for(;;) {
 	c = tin.get();
 
 	if(tin.eof()) {
-	    token = "$";
+	    t = "$";
 	    return;
 	}
 
@@ -897,47 +921,47 @@ void parser::next_token(std::istream & tin)
 	    if(isspace(c)) {
 		// skip white space (for now)
 	    } else if(isdigit(c)) {
-		token_value += c;
+		tv += c;
 		state = 2;
 	    } else if(isalpha(c)) {
-		token_value += c;
+		tv += c;
 		state = 1;
 	    } else if(c == '"') {
-		token_value += c;
+		tv += c;
 		state = 5;
 	    } else if(c == '\'') {
 		// don't capture the opening quote
 		state = 4;
 	    } else if(c == '-') {
 		// could be '-' or '->'
-		token_value += c;
+		tv += c;
 		state = 6;
 	    } else if(c == ';' || c == ':' || c == '{' || c == '}'
 		      || c == '(' || c == ')' || c == '?' || c == '&'
 		      || c == '+' || c == '*' || c == '/'
 		      || c == '=' || c == '[' || c == ']') {
 		// single character literal
-		token = c;
-		token_value = c;
+		t = c;
+		tv = c;
 		return;
 	    } else {
 		// misc literal (hack)
-		token_value += c;
+		tv += c;
 		state = 3;
 	    }
 	    break;
 
 	case 1: // ID | <ID-like literal from grammar>
 	    if(isalnum(c) || c == '_') {
-		token_value += c;
+		tv += c;
 	    } else {
-		if(literals.count(token_value) > 0) {
+		if(literals.count(tv) > 0) {
 		    // This is an ID-like literal that was specified
 		    // in the grammar
-		    token = token_value;
+		    t = tv;
 		} else {
 		    // Otherwise, it is an ID
-		    token = "id";
+		    t = "id";
 		}
 
 		tin.unget();
@@ -947,10 +971,10 @@ void parser::next_token(std::istream & tin)
 
 	case 2: // NUM
 	    if(isdigit(c)) {
-		token_value += c;
+		tv += c;
 	    } else {
 		tin.unget();
-		token = "num";
+		t = "num";
 		return;
 	    }
 	    break;
@@ -959,41 +983,41 @@ void parser::next_token(std::istream & tin)
 	    // Anything other than whitespace is part of the literal
 	    if(isspace(c)) {
 		// just consume space
-		token = token_value;
+		t = tv;
 		return;
 	    } else {
-		token_value += c;
+		tv += c;
 	    }
 	    break;
 
 	case 4: // literal in the form of 'xyz'
 	    if(c == '\'') {
 		// don't capture the closing quote
-		token = "literal";
+		t = "literal";
 		return;
 	    } else {
-		token_value += c;
+		tv += c;
 	    }
 	    break;
 
 	case 5:
 	    if(c == '"') {
-		token_value += c;
-		token = "string";
+		tv += c;
+		t = "string";
 		return;
 	    } else {
-		token_value += c;
+		tv += c;
 	    }
 	    break;
 
 	case 6:
 	    if(c == '>') {
-		token_value += c;
-		token = token_value;
+		tv += c;
+		t = tv;
 		return;
 	    } else {
 		tin.unget();
-		token = token_value;
+		t = tv;
 		return;
 	    }
 

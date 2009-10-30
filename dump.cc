@@ -92,7 +92,7 @@ void parser::dump_grammar(void)
     return;
 }
 
-void parser::dump(const char * msg)
+void parser::dump(const char * msg, std::string & t, std::string & tv)
 {
     if(msg) {
 	std::cout << "[" << msg << "]\n";
@@ -104,8 +104,7 @@ void parser::dump(const char * msg)
 
     std::cout << "parser state:\n";
 
-    std::cout << "current token: " << token
-	 << ", value: " << token_value << '\n';
+    std::cout << "current token: " << t << ", value: " << tv << '\n';
 
     std::cout << " symbol stack: ";
 

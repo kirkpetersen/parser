@@ -72,9 +72,6 @@ class parser {
     std::set<std::string> tokens;
     std::set<std::string> literals;
 
-    std::string token;
-    std::string token_value;
-
     int verbose;
 
 public:
@@ -88,6 +85,9 @@ public:
 
     void bootstrap(void);
 
+    void init_state(void);
+
+    bool step(std::string & t, std::string & tv);
     void run(std::istream & tin);
 
     struct tree_node * tree(void) {
@@ -147,14 +147,14 @@ public:
 		     const std::set<parser_item *> & l1,
 		     std::set<parser_item *> & l2);
 
-    void next_token(std::istream & tin);
+    void next_token(std::istream & tin, std::string & t, std::string & tv);
 
     // All of these are in dump.cc
     void dump_stats(void);
 
     void dump_set(const char * msg, const std::set<std::string> & rs);
 
-    void dump(const char * msg = NULL);
+    void dump(const char * msg, std::string & t, std::string & tv);
     void dump_grammar(void);
     void dump_state(const parser_state * ps, unsigned spaces = 0);
     void dump_item(const parser_item * pi, unsigned spaces = 0);

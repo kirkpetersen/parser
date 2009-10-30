@@ -1,6 +1,10 @@
 Parser notes
 
 TODO
+- completions
+  - given the current parser state, tell the user what can happen next
+  - requires parser to be able to run iteratively
+
 - FIRST() caching?
 
 - state caching
