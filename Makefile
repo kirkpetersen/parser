@@ -1,13 +1,10 @@
 # parser makefile
 
-CPPFLAGS = -Wall -Werror -g
-CFLAGS = -Wall -Werror -g
+CPPFLAGS = -Wall -Werror -g -pg
+CFLAGS = -Wall -Werror -g -pg
 LDFLAGS = -pg
 
 all:	parser test
-
-%.o : CPPFLAGS += -pg
-%.o : CFLAGS += -pg
 
 %.oo : CPPFLAGS += -O3
 

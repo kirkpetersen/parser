@@ -206,7 +206,7 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
 	std::cout << ". ";
     }
 
-    std::cout << "{" << pi->terminal << "}\n";
+    std::cout << "{" << pi->lookahead << "}\n";
 
     return;
 }

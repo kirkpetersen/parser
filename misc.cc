@@ -37,20 +37,14 @@ struct tree_node * parser_run(const char * grammar, const char * input)
 bool parser_item_compare::operator()(const parser_item * p1,
 				     const parser_item * p2) const
 {
-    const bool i = p1->index == p2->index;
-
-    if(i) {
-	const bool h = p1->rule->head == p2->rule->head;
-
-	if(h) {
-	    const bool s = p1->rule->symbols == p2->rule->symbols;
-
-	    if(s) {
-		if(p1->terminal < p2->terminal) {
+    if(p1->index == p2->index) {
+	if(p1->rule->head == p2->rule->head) {
+	    if(p1->lookahead == p2->lookahead) {
+		if(p1->rule->symbols < p2->rule->symbols) {
 		    return true;
 		}
 
-	    } else if(p1->rule->symbols < p2->rule->symbols) {
+	    } else if(p1->lookahead < p2->lookahead) {
 		return true;
 	    }
 	} else if(p1->rule->head < p2->rule->head) {

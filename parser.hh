@@ -28,9 +28,8 @@ struct parser_rule {
 
 struct parser_item {
     const parser_rule * rule;
-
     unsigned index;
-    std::string terminal;
+    std::string lookahead;
 };
 
 struct parser_item_compare {

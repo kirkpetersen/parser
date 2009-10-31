@@ -315,7 +315,7 @@ bool parser::reduce(parser_state * ps,
 	}
 
 	// Skip any item that doesn't match the token
-	if(t != pi->terminal) {
+	if(t != pi->lookahead) {
 	    continue;
 	}
 
@@ -423,7 +423,7 @@ void parser::expect(const std::set<parser_item *, parser_item_compare> & items,
 	    }
 	} else {
 	    // This is a reduce state, insert the lookahead symbol
-	    ss.insert(pi->terminal);
+	    ss.insert(pi->lookahead);
 	}
     }
 
@@ -632,7 +632,7 @@ void parser::check(const std::string & t,
 		    ca++;
 		}
 	    } else {
-		if(t == pi->terminal) {
+		if(t == pi->lookahead) {
 		    if(verbose > 1) {
 			std::cout << "check: reduce ";
 			dump_item(pi);
@@ -653,7 +653,7 @@ parser_item * parser::make_item(const parser_rule * r, const std::string & t)
 
     pi->rule = r;
     pi->index = 0;
-    pi->terminal = t;
+    pi->lookahead = t;
 
     return pi;
 }
@@ -808,7 +808,7 @@ void parser::first(const parser_item * pi, unsigned idx,
 	}
     }
 
-    rs.insert(pi->terminal);
+    rs.insert(pi->lookahead);
 
     return;
 }
@@ -865,7 +865,7 @@ void parser::closure(parser_state * ps)
 		std::cout << pi->rule->symbols[i] << ' ';
 	    }
 
-	    std::cout << pi->terminal;
+	    std::cout << pi->lookahead;
 
 	    dump_set("): ", rs);
 	}
@@ -894,8 +894,6 @@ void parser::closure(parser_state * ps)
 
 	    std::set<std::string>::const_iterator si;
 
-	    bool dup_test = false;
-
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {
 		parser_item * pi2 = make_item(rule, *si);
@@ -906,17 +904,12 @@ void parser::closure(parser_state * ps)
 			std::cout << "dup: ";
 			dump_item(pi2);
 		    }
-		    dup_test = true;
 		    continue;
 		}
 
 		if(verbose > 4) {
 		    std::cout << "new: ";
 		    dump_item(pi2);
-
-		    if(dup_test) {
-			std::cout << "caught!\n";
-		    }
 		}
 
 		queue.push(pi2);
