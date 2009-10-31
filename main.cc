@@ -29,6 +29,12 @@ int main(int argc, char * argv[])
 
     parser p(verbose);
 
+    {
+	char buffer[128];
+	snprintf(buffer, sizeof(buffer), "PARSER_BOOTSTRAP_VERBOSE=%d", verbose);
+	putenv(buffer);
+    }
+
     if(!argv[optind]) {
 	return 1;
     }

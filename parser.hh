@@ -142,7 +142,7 @@ public:
     // Helper function for shift and reduce
     parser_state * sr(parser_state * ps, const std::string & t);
 
-    void closure(parser_state * ps);
+    unsigned closure(parser_state * ps);
 
     bool first(const std::string & h, std::set<std::string> & rs);
     bool first(const std::string & h, std::set<std::string> & v,
@@ -160,6 +160,7 @@ public:
     void dump_set(const char * msg, const std::set<std::string> & rs);
 
     void dump(const char * msg, std::string & t, std::string & tv);
+    void dump(void);
     void dump_grammar(void);
     void dump_state(const parser_state * ps, unsigned spaces = 0);
     void dump_item(const parser_item * pi, unsigned spaces = 0);

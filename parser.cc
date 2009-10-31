@@ -269,7 +269,11 @@ void parser::init_state(void)
 	ps->kernel_items.insert(pi);
     }
 
-    closure(ps);
+    unsigned c = closure(ps);
+
+    if(verbose > 2) {
+	std::cout << "closure count: " << c << "\n";
+    }
 
     state_stack.push_back(ps);
 
@@ -294,7 +298,11 @@ parser_state * parser::sr(parser_state * ps, const std::string & t)
 	std::cout << "closure post shift\n";
     }
 
-    closure(ns);
+    unsigned c = closure(ns);
+
+    if(verbose > 2) {
+	std::cout << "closure count: " << c << "\n";
+    }
 
     return ns;
 }
@@ -737,7 +745,7 @@ bool parser::first(const std::string & h, std::set<std::string> & v,
     std::pair<std::set<std::string>::const_iterator, bool> vi;
 
     vi = v.insert(h);
-    if(vi.second) {
+    if(!vi.second) {
 	return se;
     }
 
@@ -811,11 +819,11 @@ void parser::first(const parser_item * pi, unsigned idx,
     return;
 }
 
-void parser::closure(parser_state * ps)
+unsigned parser::closure(parser_state * ps)
 {
     std::queue<parser_item *> queue;
-
     parser_item_iter li;
+    unsigned count = 0;
 
     stats.closure_calls++;
 
@@ -826,6 +834,7 @@ void parser::closure(parser_state * ps)
 
     while(!queue.empty()) {
 	stats.closure_loops++;
+	count++;
 
 	parser_item * pi = queue.front();
 	queue.pop();
@@ -902,7 +911,7 @@ void parser::closure(parser_state * ps)
 		p = ps->nonkernel_items.insert(pi2);
 
 		// If the entry was a duplicate...
-		if(p.second) {
+		if(!p.second) {
 		    stats.closure_item_duplicates++;
 		    if(verbose > 4) {
 			std::cout << "dup: ";
@@ -923,7 +932,7 @@ void parser::closure(parser_state * ps)
 	}
     }
 
-    return;
+    return count;
 }
 
 void parser::next_token(std::istream & tin, std::string & t, std::string & tv)

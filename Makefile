@@ -4,7 +4,7 @@ CPPFLAGS = -Wall -Werror -g -pg
 CFLAGS = -Wall -Werror -g -pg
 LDFLAGS = -pg
 
-all:	parser test
+all:	parser test parser.opt
 
 %.oo : CPPFLAGS += -O3
 

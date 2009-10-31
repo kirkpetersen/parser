@@ -90,6 +90,16 @@ void parser::dump_grammar(void)
     return;
 }
 
+void parser::dump(void)
+{
+    const char * d = "debug";
+    std::string s1 = "", s2 = "";
+
+    dump(d, s1, s2);
+
+    return;
+}
+
 void parser::dump(const char * msg, std::string & t, std::string & tv)
 {
     if(msg) {
