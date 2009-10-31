@@ -282,10 +282,6 @@ void parser::init_state(void)
 
 parser_state * parser::sr(parser_state * ps, const std::string & t)
 {
-    // TODO build a temporary set of kernel items first and look them
-    // up in the (kernel items -> state cache) if they exist, we can
-    // skip the closure() step, which takes 50% of the time
-
     parser_state * ns = new parser_state;
 
     // Fill in the new state
@@ -520,6 +516,8 @@ void parser::run(std::istream & tin)
     parser_state * ps = state_stack.back();
 
     unsigned loop = 0;
+
+    // TODO remove the following code and call parser::step
 
     for(;;) {
 	stats.loops++;

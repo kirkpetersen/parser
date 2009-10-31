@@ -1,9 +1,6 @@
 Parser notes
 
 TODO
-- completions
-  - given the current parser state, tell the user what can happen next
-
 - FIRST() caching?
 
 - state caching
@@ -33,3 +30,10 @@ TODO
   - separate file (compile time is growing)
   - simple regex engine (should be easy compared to parser)
   - tokenizer spec built into grammar files
+
+- shift and reduce in one step when possible (?)
+  - foo -> . bar (with various lookaheads)
+  - token is 'bar'
+  - look ahead to next token
+  - if token matches lookahead, do shift/reduce in one step
+  - this requires a solid mechanism of looking ahead to the next token
