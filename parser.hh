@@ -21,6 +21,8 @@ extern "C" {
 #include "parser_c.h"
 }
 
+typedef std::set<std::string> string_set;
+
 struct parser_rule {
     std::string head;
     std::vector<std::string> symbols;
@@ -62,29 +64,70 @@ struct parser_stats {
     unsigned closure_skips;
 };
 
+struct grammar_node {
+    grammar_node * next;
+    char * key;
+    parser_rule_list list;
+};
+
+class grammar {
+    static const unsigned table_size = 311;
+    grammar_node * table[table_size];
+
+public:
+    grammar(void) {
+	for(unsigned i = 0; i < table_size; i++) {
+	    table[i] = NULL;
+	}
+    }
+
+    // TODO need to properly cleanup everything
+
+    unsigned hash(const char * k) const {
+	unsigned h = 0;
+
+	for(unsigned i = 0; k[i]; i++) {
+	    h += k[i];
+	}
+
+	return h;
+    }
+
+    unsigned count(const char * k) const;
+    parser_rule_list & operator[](const char * k);
+
+    void dump(void) const;
+};
+
 class parser {
     parser_stats stats;
 
     std::string start;
 
-    std::map<std::string, std::list<parser_rule *> > productions;
+    grammar productions;
 
     std::deque<parser_state *> state_stack;
     std::deque<std::string> symbol_stack;
 
     std::deque<struct tree_node *> node_stack;
 
-    std::set<std::string> tokens;
-    std::set<std::string> literals;
+    string_set tokens;
+    string_set literals;
 
     int verbose;
 
+    bool error;
+
 public:
-    parser(int v = 0) : start("START"), verbose(v) {
+    parser(int v = 0) : start("START"), verbose(v), error(false) {
 	memset(&stats, 0, sizeof(stats));
     }
 
     ~parser(void);
+
+    void verbosity_increment(void);
+
+    bool get_error(void) const { return error; }
 
     void build_rule(const std::string & head, ...);
 
@@ -92,9 +135,9 @@ public:
 
     void init_state(void);
 
-    void expect(const parser_item_set & items,
-		std::set<std::string> & ss, bool nt = false);
-    void expect(std::set<std::string> & ss, bool nt = false);
+    void expect(const parser_item_set & items, string_set & ss,
+		bool nt = false);
+    void expect(string_set & ss, bool nt = false);
 
     bool step(std::string & t, std::string & tv);
     void run(std::istream & tin);
@@ -118,7 +161,7 @@ public:
     void load_production(struct tree_node * tn);
     
     bool terminal(const std::string & s) const {
-	if(productions.count(s) > 0) {
+	if(productions.count(s.c_str()) > 0) {
 	    return false;
 	} else {
 	    return true;
@@ -144,10 +187,9 @@ public:
 
     unsigned closure(parser_state * ps);
 
-    bool first(const std::string & h, std::set<std::string> & rs);
-    bool first(const std::string & h, std::set<std::string> & v,
-	       std::set<std::string> & rs);
-    void first(const parser_item * pi, unsigned idx, std::set<std::string> & rs);
+    bool first(const std::string & h, string_set & rs);
+    bool first(const std::string & h, string_set & v, string_set & rs);
+    void first(const parser_item * pi, unsigned idx, string_set & rs);
 
     void check_shift(const std::string & t,
 		     const parser_item_set & l1, parser_item_set & l2);
@@ -157,7 +199,7 @@ public:
     // All of these are in dump.cc
     void dump_stats(void);
 
-    void dump_set(const char * msg, const std::set<std::string> & rs);
+    void dump_set(const char * msg, const string_set & rs);
 
     void dump(const char * msg, std::string & t, std::string & tv);
     void dump(void);

@@ -72,6 +72,10 @@ int main(int argc, char * argv[])
 
 	    nt = p.step(t, tv);
 
+	    if(p.get_error()) {
+		break;
+	    }
+
 	    if(nt) {
 		if(t == "$") {
 		    break;

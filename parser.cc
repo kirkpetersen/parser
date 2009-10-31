@@ -11,6 +11,47 @@
 
 #include "parser.hh"
 
+// grammar
+
+unsigned grammar::count(const char * k) const
+{
+    unsigned h = hash(k) % table_size;
+
+    // This should return 1 at most
+    for(grammar_node * g = table[h]; g; g = g->next) {
+	if(strcmp(k, g->key) == 0) {
+	    return 1;
+	}
+    }
+
+    return 0;
+}
+
+parser_rule_list & grammar::operator[](const char * k)
+{
+    unsigned h = hash(k) % table_size;
+
+    for(grammar_node * g = table[h]; g; g = g->next) {
+	// Return a reference to the list on a match
+	if(strcmp(k, g->key) == 0) {
+	    return g->list;
+	}
+    }
+
+    // Only reached if there is no matching element
+
+    grammar_node * g = new grammar_node;
+
+    g->key = strdup(k);
+
+    // Insert into the list
+    g->next = table[h];
+
+    table[h] = g;
+
+    return g->list;
+}
+
 // parser
 
 parser::~parser(void)
@@ -26,15 +67,12 @@ parser::~parser(void)
 	tree_node_free(tn);
     }
 
-    std::map<std::string, std::list<parser_rule *> >::const_iterator pi;
+    return;
+}
 
-    for(pi = productions.begin(); pi != productions.end(); ++pi) {
-	std::list<parser_rule *>::const_iterator li;
-
-	for(li = pi->second.begin(); li != pi->second.end(); ++li) {
-	    delete (*li);
-	}
-    }
+void parser::verbosity_increment(void)
+{
+    verbose++;
 
     return;
 }
@@ -61,7 +99,7 @@ void parser::build_rule(const std::string & head, ...)
 
     va_end(ap);
 
-    productions[head].push_back(rule);
+    productions[head.c_str()].push_back(rule);
 
     return;
 }
@@ -136,7 +174,7 @@ void parser::load_tokenizer(struct tree_node * tn)
 		rule->head = start;
 		rule->symbols.push_back(s->value);
 
-		productions[start].push_back(rule);
+		productions[start.c_str()].push_back(rule);
 	    }
 	}
     }
@@ -253,7 +291,7 @@ void parser::load(const char * filename)
 
 void parser::init_state(void)
 {
-    std::list<parser_rule *> sp = productions[start];
+    parser_rule_list & sp = productions[start.c_str()];
 
     if(sp.empty()) {
 	std::cerr << "no start state!\n";
@@ -262,10 +300,10 @@ void parser::init_state(void)
 
     parser_state * ps = new parser_state;
 
-    std::list<parser_rule *>::const_iterator li;
+    parser_rule_iter pri;
 
-    for(li = sp.begin(); li != sp.end(); ++li) {
-	parser_item * pi = make_item(*li, "$");
+    for(pri = sp.begin(); pri != sp.end(); ++pri) {
+	parser_item * pi = make_item(*pri, "$");
 	ps->kernel_items.insert(pi);
     }
 
@@ -411,8 +449,7 @@ bool parser::reduce(parser_state * ps,
     return false;
 }
 
-void parser::expect(const parser_item_set & items,
-		    std::set<std::string> & ss, bool nt)
+void parser::expect(const parser_item_set & items, string_set & ss, bool nt)
 {
     parser_item_iter li;
 
@@ -433,7 +470,7 @@ void parser::expect(const parser_item_set & items,
     return;
 }
 
-void parser::expect(std::set<std::string> & ss, bool nt)
+void parser::expect(string_set & ss, bool nt)
 {
     parser_state * ps = state_stack.back();
 
@@ -500,7 +537,11 @@ bool parser::step(std::string & t, std::string & tv)
 	    reduce(ps, t, tv, ps->nonkernel_items);
 	}
     } else {
+	error = true;
+	unsigned v = verbose;
+	verbose = 6;
 	dump("ERROR!", t, tv);
+	verbose = v;
 	return true;
     }
 
@@ -589,7 +630,12 @@ void parser::run(std::istream & tin)
 	    ps = state_stack.back();
 
 	} else {
+	    error = true;
+
+	    unsigned v = verbose;
+	    verbose = 6;
 	    dump("ERROR!", t, tv);
+	    verbose = v;
 	    break;
 	}
     }
@@ -729,8 +775,7 @@ void parser::shift(parser_state * ps,
     return;
 }
 
-bool parser::first(const std::string & h, std::set<std::string> & v,
-		   std::set<std::string> & rs)
+bool parser::first(const std::string & h, string_set & v, string_set & rs)
 {
     bool se = false;
 
@@ -740,21 +785,22 @@ bool parser::first(const std::string & h, std::set<std::string> & v,
 	return se;
     }
 
-    std::pair<std::set<std::string>::const_iterator, bool> vi;
+    std::pair<string_set::const_iterator, bool> vi;
 
     vi = v.insert(h);
     if(!vi.second) {
 	return se;
     }
 
-    if(productions.count(h) == 0) {
+    if(productions.count(h.c_str()) == 0) {
 	std::cerr << "error!\n";
 	return se;
     }
 
+    parser_rule_list & prl = productions[h.c_str()];
     parser_rule_iter li;
 
-    for(li = productions[h].begin(); li != productions[h].end(); ++li) {
+    for(li = prl.begin(); li != prl.end(); ++li) {
 	const parser_rule * rule = *li;
 
 	if(rule->symbols.empty()) {
@@ -788,16 +834,17 @@ bool parser::first(const std::string & h, std::set<std::string> & v,
     return se;
 }
 
-bool parser::first(const std::string & h, std::set<std::string> & rs)
+bool parser::first(const std::string & h, string_set & rs)
 {
-    std::set<std::string> visited;
+    string_set visited;
 
     // Call the recursive version with the visited map
-    return first(h, visited, rs);
+    bool b = first(h, visited, rs);
+
+    return b;
 }
 
-void parser::first(const parser_item * pi, unsigned idx,
-		   std::set<std::string> & rs)
+void parser::first(const parser_item * pi, unsigned idx, string_set & rs)
 {
     unsigned size = pi->rule->symbols.size();
 
@@ -852,12 +899,12 @@ unsigned parser::closure(parser_state * ps)
 	    continue;
 	}
 
-	if(productions.count(s) == 0) {
+	if(productions.count(s.c_str()) == 0) {
 	    std::cerr << "ERROR?\n";
 	    continue;
 	}
 
-	std::set<std::string> rs;
+	string_set rs;
 
 	// FIRST() after the current symbol in the item
 	// Given [ A -> /a/ . X /B/ , a ], find FIRST(/B/ a)
@@ -875,10 +922,11 @@ unsigned parser::closure(parser_state * ps)
 	    dump_set("): ", rs);
 	}
 
+	parser_rule_list & prl = productions[s.c_str()];
 	parser_rule_iter ri;
 
 	// for ( each production B -> y in G' )
-	for(ri = productions[s].begin(); ri != productions[s].end(); ++ri) {
+	for(ri = prl.begin(); ri != prl.end(); ++ri) {
 	    parser_rule * rule = *ri;
 
 	    if(verbose > 4) {
@@ -897,7 +945,7 @@ unsigned parser::closure(parser_state * ps)
 		dump_set("terminals: ", rs);
 	    }
 
-	    std::set<std::string>::const_iterator si;
+	    string_set::const_iterator si;
 
 	    // for ( each terminal b in FIRST(/B/ a) )
 	    for(si = rs.begin(); si != rs.end(); ++si) {

@@ -26,6 +26,7 @@ int test_empty2(void);
 int test_c(void);
 int test_lr1(void);
 int test_map(void);
+int test_grammar(void);
 
 struct test {
     const char * name;
@@ -36,6 +37,7 @@ struct test {
     { "c", test_c },
     { "lr1", test_lr1 },
     { "map", test_map },
+    { "grammar", test_grammar },
     { NULL, NULL }
 };
 
@@ -213,6 +215,7 @@ int test_c(void)
 
     p.first("translation_unit", rs);
     p.dump_set("FIRST(translation_unit): ", rs);
+    assert(rs.count("struct") > 0);
 
     return 0;
 }
@@ -239,6 +242,22 @@ int test_map(void)
     m["foo"] = false;
 
     assert(m.count("foo") > 0);
+
+    return 0;
+}
+
+int test_grammar(void)
+{
+    grammar g;
+
+    parser_rule * rule = new parser_rule;
+
+    rule->head = "foo";
+    rule->symbols.push_back("bar");
+
+    g["foo"].push_back(rule);
+
+    assert(g.count("foo") == 1);
 
     return 0;
 }

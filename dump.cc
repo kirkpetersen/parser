@@ -11,6 +11,39 @@
 
 #include "parser.hh"
 
+void grammar::dump(void) const
+{
+    for(unsigned i = 0; i < table_size; i++) {
+	for(grammar_node * g = table[i]; g; g = g->next) {
+	    parser_rule_list & prl = table[i]->list;
+	    parser_rule_iter ri;
+
+	    // This handles multiple productions with the same head
+	    for(ri = prl.begin(); ri != prl.end(); ++ri) {
+		const parser_rule * rule = *ri;
+		unsigned size = rule->symbols.size();
+
+		std::cout << " " << rule->head << " -> ";
+
+		// Iterates through the symbols
+		for(unsigned i = 0; i < size; i++) {
+		    const std::string & s = rule->symbols[i];
+
+		    std::cout << s;
+
+		    if(i < size - 1) {
+			std::cout << ' ';
+		    }
+		}
+
+		std::cout << '\n';
+	    }
+	}
+    }
+
+    return;
+}
+
 void parser::dump_set(const char * msg, const std::set<std::string> & rs)
 {
     std::cout << msg;
@@ -52,40 +85,7 @@ void parser::dump_grammar(void)
 
     std::cout << "productions:\n";
 
-    std::map<std::string, parser_rule_list>::const_iterator mi;
-
-    // For each production...
-    for(mi = productions.begin(); mi != productions.end(); ++mi) {
-	const std::string & h = mi->first;
-	const parser_rule_list & l = mi->second;
-
-	parser_rule_iter ri;
-
-	// This handles multiple productions with the same head
-	for(ri = l.begin(); ri != l.end(); ++ri) {
-	    const parser_rule * rule = *ri;
-	    unsigned size = rule->symbols.size();
-
-	    std::cout << " " << h << " -> ";
-
-	    // Iterates through the symbols
-	    for(unsigned i = 0; i < size; i++) {
-		const std::string & s = rule->symbols[i];
-
-		if(terminal(s)) {
-		    std::cout << "'" << s << "'";
-		} else {
-		    std::cout << s;
-		}
-
-		if(i < size - 1) {
-		    std::cout << ' ';
-		}
-	    }
-
-	    std::cout << '\n';
-	}
-    }
+    productions.dump();
 
     return;
 }

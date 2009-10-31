@@ -5,8 +5,8 @@
 STMT : 'if' E 'then' E 'else' E { }
      ;
 
-E : E '+' E { }
-  | num { }
-  | id { }
+E : E '+' E
+  | num
+  | id
   ;
 
