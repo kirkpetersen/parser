@@ -301,10 +301,9 @@ parser_state * parser::sr(parser_state * ps, const std::string & t)
 
 bool parser::reduce(parser_state * ps,
 		    const std::string & t, const std::string & tv,
-		    std::set<parser_item *, parser_item_compare> & items,
-		    bool noshift)
+		    parser_item_set & items, bool noshift)
 {
-    std::set<parser_item *, parser_item_compare>::const_iterator ki;
+    parser_item_iter ki;
 
     for(ki = items.begin(); ki != items.end(); ++ki) {
 	parser_item * pi = *ki;
@@ -408,10 +407,10 @@ bool parser::reduce(parser_state * ps,
     return false;
 }
 
-void parser::expect(const std::set<parser_item *, parser_item_compare> & items,
+void parser::expect(const parser_item_set & items,
 		    std::set<std::string> & ss, bool nt)
 {
-    std::set<parser_item *>::const_iterator li;
+    parser_item_iter li;
 
     // Look for all terminal symbols that we are expecting
     for(li = items.begin(); li != items.end(); ++li) {
@@ -592,11 +591,10 @@ void parser::run(std::istream & tin)
     return;
 }
 
-void parser::check(const std::string & t,
-		   const std::set<parser_item *, parser_item_compare> & l,
+void parser::check(const std::string & t, const parser_item_set & l,
 		   int & cs, int & cr, int & ca)
 {
-    std::set<parser_item *>::const_iterator li;
+    parser_item_iter li;
 
     // Check each item in the list
     for(li = l.begin(); li != l.end(); ++li) {
@@ -659,10 +657,9 @@ parser_item * parser::make_item(const parser_rule * r, const std::string & t)
 }
 
 void parser::build_items(const std::string & t,
-			 const std::set<parser_item *, parser_item_compare> & l,
-			 std::set<parser_item *, parser_item_compare> & n)
+			 const parser_item_set & l, parser_item_set & n)
 {
-    std::set<parser_item *>::const_iterator li;
+    parser_item_iter li;
 
     stats.build_items_calls++;
 
@@ -737,18 +734,19 @@ bool parser::first(const std::string & h, std::set<std::string> & v,
 	return se;
     }
 
-    if(v.count(h) > 0) {
+    std::pair<std::set<std::string>::const_iterator, bool> vi;
+
+    vi = v.insert(h);
+    if(vi.second) {
 	return se;
     }
-
-    v.insert(h);
-
-    std::list<parser_rule *>::const_iterator li;
 
     if(productions.count(h) == 0) {
 	std::cerr << "error!\n";
 	return se;
     }
+
+    parser_rule_iter li;
 
     for(li = productions[h].begin(); li != productions[h].end(); ++li) {
 	const parser_rule * rule = *li;
@@ -817,7 +815,7 @@ void parser::closure(parser_state * ps)
 {
     std::queue<parser_item *> queue;
 
-    std::set<parser_item *>::const_iterator li;
+    parser_item_iter li;
 
     stats.closure_calls++;
 
@@ -870,11 +868,11 @@ void parser::closure(parser_state * ps)
 	    dump_set("): ", rs);
 	}
 
-	std::list<parser_rule *>::const_iterator li;
+	parser_rule_iter ri;
 
 	// for ( each production B -> y in G' )
-	for(li = productions[s].begin(); li != productions[s].end(); ++li) {
-	    parser_rule * rule = *li;
+	for(ri = productions[s].begin(); ri != productions[s].end(); ++ri) {
+	    parser_rule * rule = *ri;
 
 	    if(verbose > 4) {
 		std::cout << "rule: " << rule->head << " -> ";
@@ -898,7 +896,13 @@ void parser::closure(parser_state * ps)
 	    for(si = rs.begin(); si != rs.end(); ++si) {
 		parser_item * pi2 = make_item(rule, *si);
 
-		if(ps->nonkernel_items.count(pi2) > 0) {
+		std::pair<parser_item_iter, bool> p;
+
+		// add [B -> . y, b] to set I
+		p = ps->nonkernel_items.insert(pi2);
+
+		// If the entry was a duplicate...
+		if(p.second) {
 		    stats.closure_item_duplicates++;
 		    if(verbose > 4) {
 			std::cout << "dup: ";
@@ -915,9 +919,6 @@ void parser::closure(parser_state * ps)
 		queue.push(pi2);
 
 		stats.closure_item_non_duplicates++;
-
-		// add [B -> . y, b] to set I
-		ps->nonkernel_items.insert(pi2);
 	    }
 	}
     }

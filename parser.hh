@@ -26,6 +26,9 @@ struct parser_rule {
     std::vector<std::string> symbols;
 };
 
+typedef std::list<parser_rule *> parser_rule_list;
+typedef parser_rule_list::const_iterator parser_rule_iter;
+
 struct parser_item {
     const parser_rule * rule;
     unsigned index;
@@ -36,9 +39,12 @@ struct parser_item_compare {
     bool operator()(const parser_item * p1, const parser_item * p2) const;
 };
 
+typedef std::set<parser_item *, parser_item_compare> parser_item_set;
+typedef parser_item_set::const_iterator parser_item_iter;
+
 struct parser_state {
-    std::set<parser_item *, parser_item_compare> kernel_items;
-    std::set<parser_item *, parser_item_compare> nonkernel_items;
+    parser_item_set kernel_items;
+    parser_item_set nonkernel_items;
 };
 
 struct parser_stats {
@@ -86,7 +92,7 @@ public:
 
     void init_state(void);
 
-    void expect(const std::set<parser_item *, parser_item_compare> & items,
+    void expect(const parser_item_set & items,
 		std::set<std::string> & ss, bool nt = false);
     void expect(std::set<std::string> & ss, bool nt = false);
 
@@ -119,22 +125,19 @@ public:
 	}
     }
 
-    void check(const std::string & t,
-	       const std::set<parser_item *, parser_item_compare> & l,
+    void check(const std::string & t, const parser_item_set & l,
 	       int & cs, int & cr, int & ca);
 
     parser_item * make_item(const parser_rule * r, const std::string & t);
 
-    void build_items(const std::string & t,
-		     const std::set<parser_item *, parser_item_compare> & l,
-		     std::set<parser_item *, parser_item_compare> & n);
+    void build_items(const std::string & t, const parser_item_set & l,
+		     parser_item_set & n);
 
     void shift(parser_state * ps,
 	       const std::string & t, const std::string & tv);
     bool reduce(parser_state * ps,
 		const std::string & t, const std::string & tv,
-		std::set<parser_item *, parser_item_compare> & items,
-		bool noshift = false);
+		parser_item_set & items, bool noshift = false);
 
     // Helper function for shift and reduce
     parser_state * sr(parser_state * ps, const std::string & t);
@@ -147,8 +150,7 @@ public:
     void first(const parser_item * pi, unsigned idx, std::set<std::string> & rs);
 
     void check_shift(const std::string & t,
-		     const std::set<parser_item *> & l1,
-		     std::set<parser_item *> & l2);
+		     const parser_item_set & l1, parser_item_set & l2);
 
     void next_token(std::istream & tin, std::string & t, std::string & tv);
 

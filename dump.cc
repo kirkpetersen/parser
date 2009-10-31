@@ -52,23 +52,21 @@ void parser::dump_grammar(void)
 
     std::cout << "productions:\n";
 
-    std::map<std::string, std::list<parser_rule *> >::const_iterator mi;
+    std::map<std::string, parser_rule_list>::const_iterator mi;
 
     // For each production...
     for(mi = productions.begin(); mi != productions.end(); ++mi) {
 	const std::string & h = mi->first;
-	const std::list<parser_rule *> & l = mi->second;
+	const parser_rule_list & l = mi->second;
 
-	std::list<parser_rule *>::const_iterator li;
+	parser_rule_iter ri;
 
 	// This handles multiple productions with the same head
-	for(li = l.begin(); li != l.end(); ++li) {
-	    const parser_rule * rule = *li;
+	for(ri = l.begin(); ri != l.end(); ++ri) {
+	    const parser_rule * rule = *ri;
 	    unsigned size = rule->symbols.size();
 
 	    std::cout << " " << h << " -> ";
-
-	    std::list<std::string>::const_iterator li2;
 
 	    // Iterates through the symbols
 	    for(unsigned i = 0; i < size; i++) {
@@ -158,7 +156,7 @@ void parser::dump(const char * msg, std::string & t, std::string & tv)
 }
 
 void parser::dump_state(const parser_state * ps, unsigned spaces) {
-    std::set<parser_item *>::const_iterator li;
+    parser_item_iter li;
 
     for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
