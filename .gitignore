@@ -1,0 +1,5 @@
+*.o
+*.oo
+parser
+test
+*.opt
