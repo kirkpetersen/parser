@@ -76,25 +76,25 @@ class grammar {
 
 public:
     grammar(void) {
-	for(unsigned i = 0; i < table_size; i++) {
-	    table[i] = NULL;
-	}
+        for (unsigned i = 0; i < table_size; i++) {
+            table[i] = NULL;
+        }
     }
 
     // TODO need to properly cleanup everything
 
     unsigned hash(const char * k) const {
-	unsigned h = 0;
+        unsigned h = 0;
 
-	for(unsigned i = 0; k[i]; i++) {
-	    h += k[i];
-	}
+        for (unsigned i = 0; k[i]; i++) {
+            h += k[i];
+        }
 
-	return h;
+        return h;
     }
 
     unsigned count(const char * k) const;
-    parser_rule_list & operator[](const char * k);
+    parser_rule_list & operator[] (const char * k);
 
     void dump(void) const;
 };
@@ -120,14 +120,16 @@ class parser {
 
 public:
     parser(int v = 0) : start("START"), verbose(v), error(false) {
-	memset(&stats, 0, sizeof(stats));
+        memset(&stats, 0, sizeof(stats));
     }
 
     ~parser(void);
 
     void verbosity_increment(void);
 
-    bool get_error(void) const { return error; }
+    bool get_error(void) const {
+        return error;
+    }
 
     void build_rule(const std::string & head, ...);
 
@@ -136,18 +138,18 @@ public:
     void init_state(void);
 
     void expect(const parser_item_set & items, string_set & ss,
-		bool nt = false);
+                bool nt = false);
     void expect(string_set & ss, bool nt = false);
 
     bool step(std::string & t, std::string & tv);
     void run(std::istream & tin);
 
     struct tree_node * tree(void) {
-	if(node_stack.empty()) {
-	    return NULL;
-	} else {
-	    return node_stack.back();
-	}
+        if (node_stack.empty()) {
+            return NULL;
+        } else {
+            return node_stack.back();
+        }
     }
 
     // FIXME tweak this...
@@ -159,28 +161,28 @@ public:
 
     void load_grammar(struct tree_node * tn);
     void load_production(struct tree_node * tn);
-    
+
     bool terminal(const std::string & s) const {
-	if(productions.count(s.c_str()) > 0) {
-	    return false;
-	} else {
-	    return true;
-	}
+        if (productions.count(s.c_str()) > 0) {
+            return false;
+        } else {
+            return true;
+        }
     }
 
     void check(const std::string & t, const parser_item_set & l,
-	       int & cs, int & cr, int & ca);
+               int & cs, int & cr, int & ca);
 
     parser_item * make_item(const parser_rule * r, const std::string & t);
 
     void build_items(const std::string & t, const parser_item_set & l,
-		     parser_item_set & n);
+                     parser_item_set & n);
 
     void shift(parser_state * ps,
-	       const std::string & t, const std::string & tv);
+               const std::string & t, const std::string & tv);
     bool reduce(parser_state * ps,
-		const std::string & t, const std::string & tv,
-		parser_item_set & items, bool noshift = false);
+                const std::string & t, const std::string & tv,
+                parser_item_set & items, bool noshift = false);
 
     // Helper function for shift and reduce
     parser_state * sr(parser_state * ps, const std::string & t);
@@ -192,7 +194,7 @@ public:
     void first(const parser_item * pi, unsigned idx, string_set & rs);
 
     void check_shift(const std::string & t,
-		     const parser_item_set & l1, parser_item_set & l2);
+                     const parser_item_set & l1, parser_item_set & l2);
 
     void next_token(std::istream & tin, std::string & t, std::string & tv);
 

@@ -15,8 +15,8 @@ int main(int argc, char * argv[])
 {
     int c, verbose = 0;
 
-    while((c = getopt(argc, argv, "v")) != EOF) {
-        switch(c) {
+    while ((c = getopt(argc, argv, "v")) != EOF) {
+        switch (c) {
         case 'v':
             verbose++;
             break;
@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
 
     struct tree_node * tn;
 
-    if(!argv[optind]) {
+    if (!argv[optind]) {
         return 1;
     }
 

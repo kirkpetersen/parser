@@ -52,3 +52,6 @@ parser.opt:	main.oo parser.oo dump.oo misc.oo tree_node.oo
 
 clean:
 	$(RM) test parser parser.opt parser.popt *.o *.oo *.po gmon.out
+
+uncrustify:
+	uncrustify --replace --no-backup -c format.cfg *.c *.cc *.h *.hh

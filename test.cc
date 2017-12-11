@@ -47,26 +47,26 @@ int main(int argc, char * argv[])
     unsigned run = 0;
     int c, ret;
 
-    while((c = getopt(argc, argv, "t:")) != EOF) {
-	switch(c) {
-	case 't':
-	    ret = run_test(optarg);
-	    run++;
+    while ((c = getopt(argc, argv, "t:")) != EOF) {
+        switch (c) {
+        case 't':
+            ret = run_test(optarg);
+            run++;
 
-	    if(ret != 0) {
-		return ret;
-	    }
+            if (ret != 0) {
+                return ret;
+            }
 
-	    break;
-	}
+            break;
+        }
     }
 
-    if(run > 0) {
-	return 0;
+    if (run > 0) {
+        return 0;
     }
 
-    for(unsigned i = 0; tests[i].name; i++) {
-	run_test(tests[i].name);
+    for (unsigned i = 0; tests[i].name; i++) {
+        run_test(tests[i].name);
     }
 
     return 0;
@@ -74,14 +74,14 @@ int main(int argc, char * argv[])
 
 int run_test(const char * name)
 {
-    for(unsigned i = 0; tests[i].name; i++) {
-	if(strcmp(name, tests[i].name) == 0) {
-	    int ret = tests[i].fn();
+    for (unsigned i = 0; tests[i].name; i++) {
+        if (strcmp(name, tests[i].name) == 0) {
+            int ret = tests[i].fn();
 
-	    const char * result = (ret == 0) ? "PASS" : "FAIL";
+            const char * result = (ret == 0) ? "PASS" : "FAIL";
 
-	    cout << "test " << tests[i].name << ": " << result << endl;
-	}
+            cout << "test " << tests[i].name << ": " << result << endl;
+        }
     }
 
     return 0;

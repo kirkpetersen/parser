@@ -14,8 +14,8 @@ struct tree_node {
     unsigned node_count;
 
     union {
-	int i;
-	float f;
+        int i;
+        float f;
     } u;
 };
 
