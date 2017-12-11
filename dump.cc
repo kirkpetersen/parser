@@ -14,31 +14,31 @@
 void grammar::dump(void) const
 {
     for(unsigned i = 0; i < table_size; i++) {
-	for(grammar_node * g = table[i]; g; g = g->next) {
-	    parser_rule_list & prl = table[i]->list;
-	    parser_rule_iter ri;
+        for(grammar_node * g = table[i]; g; g = g->next) {
+            parser_rule_list & prl = table[i]->list;
+            parser_rule_iter ri;
 
-	    // This handles multiple productions with the same head
-	    for(ri = prl.begin(); ri != prl.end(); ++ri) {
-		const parser_rule * rule = *ri;
-		unsigned size = rule->symbols.size();
+            // This handles multiple productions with the same head
+            for(ri = prl.begin(); ri != prl.end(); ++ri) {
+                const parser_rule * rule = *ri;
+                unsigned size = rule->symbols.size();
 
-		std::cout << " " << rule->head << " -> ";
+                std::cout << " " << rule->head << " -> ";
 
-		// Iterates through the symbols
-		for(unsigned i = 0; i < size; i++) {
-		    const std::string & s = rule->symbols[i];
+                // Iterates through the symbols
+                for(unsigned i = 0; i < size; i++) {
+                    const std::string & s = rule->symbols[i];
 
-		    std::cout << s;
+                    std::cout << s;
 
-		    if(i < size - 1) {
-			std::cout << ' ';
-		    }
-		}
+                    if(i < size - 1) {
+                        std::cout << ' ';
+                    }
+                }
 
-		std::cout << '\n';
-	    }
-	}
+                std::cout << '\n';
+            }
+        }
     }
 
     return;
@@ -51,7 +51,7 @@ void parser::dump_set(const char * msg, const std::set<std::string> & rs)
     std::set<std::string>::const_iterator si;
 
     for(si = rs.begin(); si != rs.end(); ++si) {
-	std::cout << *si << " ";
+        std::cout << *si << " ";
     }
 
     std::cout << '\n';
@@ -103,11 +103,11 @@ void parser::dump(void)
 void parser::dump(const char * msg, std::string & t, std::string & tv)
 {
     if(msg) {
-	std::cout << "[" << msg << "]\n";
+        std::cout << "[" << msg << "]\n";
     }
 
     if(verbose > 5) {
-	dump_grammar();
+        dump_grammar();
     }
 
     std::cout << "parser state:\n";
@@ -119,7 +119,7 @@ void parser::dump(const char * msg, std::string & t, std::string & tv)
     std::deque<std::string>::const_iterator sy;
 
     for(sy = symbol_stack.begin(); sy != symbol_stack.end(); ++sy) {
-	std::cout << *sy << ' ';
+        std::cout << *sy << ' ';
     }
 
     std::cout << "\n";
@@ -129,37 +129,37 @@ void parser::dump(const char * msg, std::string & t, std::string & tv)
     unsigned sn = 0;
 
     if(verbose > 3) {
-	std::cout << " state stack:\n";
+        std::cout << " state stack:\n";
 
-	for(st = state_stack.begin(); st != state_stack.end(); ++st) {
-	    const parser_state * ps = *st;
+        for(st = state_stack.begin(); st != state_stack.end(); ++st) {
+            const parser_state * ps = *st;
 
-	    std::cout << "  state " << sn++ << '\n';
+            std::cout << "  state " << sn++ << '\n';
 
-	    dump_state(ps, 3);
-	}
+            dump_state(ps, 3);
+        }
     } else {
-	std::cout << " state stack (kernel items of top state only):\n";
+        std::cout << " state stack (kernel items of top state only):\n";
 
-	if(!state_stack.empty()) {
-	    const parser_state * ps = state_stack.back();
+        if(!state_stack.empty()) {
+            const parser_state * ps = state_stack.back();
 
-	    std::cout << "  state " << state_stack.size() - 1 << '\n';
+            std::cout << "  state " << state_stack.size() - 1 << '\n';
 
-	    dump_state(ps, 3);
-	}
+            dump_state(ps, 3);
+        }
     }
 
     if(verbose > 3) {
-	std::cout << " parse tree:\n";
+        std::cout << " parse tree:\n";
 
-	if(node_stack.size() > 0) {
-	    tree_node_dump(node_stack.back(), 2);
-	}
+        if(node_stack.size() > 0) {
+            tree_node_dump(node_stack.back(), 2);
+        }
     }
 
     if(verbose > 4) {
-	dump_stats();
+        dump_stats();
     }
 
     return;
@@ -173,23 +173,23 @@ void parser::dump_state(const parser_state * ps, unsigned spaces) {
     std::cout << "kernel items:\n";
 
     for(li = ps->kernel_items.begin();
-	li != ps->kernel_items.end(); ++li) {
-	const parser_item * pi = *li;
+        li != ps->kernel_items.end(); ++li) {
+        const parser_item * pi = *li;
 
-	dump_item(pi, spaces + 1);
+        dump_item(pi, spaces + 1);
     }
 
     if(verbose > 3) {
-	for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
+        for(unsigned i = 0; i < spaces; i++) { std::cout << ' '; }
 
-	std::cout << "nonkernel items:\n";
+        std::cout << "nonkernel items:\n";
 
-	for(li = ps->nonkernel_items.begin();
-	    li != ps->nonkernel_items.end(); ++li) {
-	    const parser_item * pi = *li;
+        for(li = ps->nonkernel_items.begin();
+            li != ps->nonkernel_items.end(); ++li) {
+            const parser_item * pi = *li;
 
-	    dump_item(pi, spaces + 1);
-	}
+            dump_item(pi, spaces + 1);
+        }
     }
 
     return;
@@ -203,15 +203,15 @@ void parser::dump_item(const parser_item * pi, unsigned spaces) {
     unsigned size = pi->rule->symbols.size();
 
     for(unsigned i = 0; i < size; i++) {
-	if(i == pi->index) {
-	    std::cout << ". ";
-	}
+        if(i == pi->index) {
+            std::cout << ". ";
+        }
 
-	std::cout << pi->rule->symbols[i] << " ";
+        std::cout << pi->rule->symbols[i] << " ";
     }
 
     if(pi->index == size) {
-	std::cout << ". ";
+        std::cout << ". ";
     }
 
     std::cout << "{" << pi->lookahead << "}\n";
